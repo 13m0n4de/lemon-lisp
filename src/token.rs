@@ -1,5 +1,6 @@
-use rug::{Integer, Float};
+use rug::{Float, Integer};
 
+#[derive(Debug, PartialEq)]
 pub enum Token {
     LParen,
     RParen,
@@ -7,5 +8,5 @@ pub enum Token {
     Integer(Integer),
     Float(Float),
     String(String),
-    Quote
+    Quote,
 }

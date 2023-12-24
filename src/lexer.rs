@@ -9,14 +9,15 @@ enum State {
     Escaped,
 }
 
-enum TokenizeError {
+#[derive(Debug, PartialEq)]
+pub enum TokenizeError {
     UnexpectedChar(char),
     UnclosedString,
 }
 
 type TokenResult = Result<Token, TokenizeError>;
 
-struct TokenStream<'a> {
+pub struct TokenStream<'a> {
     next_token: Option<TokenResult>,
     char_buffer: Vec<char>,
     char_iter: Chars<'a>,
@@ -69,6 +70,10 @@ impl<'a> TokenStream<'a> {
             }
         }
         Err(TokenizeError::UnclosedString)
+    }
+
+    pub fn tokenize(mut self) -> Result<Vec<Token>, TokenizeError> {
+        self.try_collect()
     }
 }
 
