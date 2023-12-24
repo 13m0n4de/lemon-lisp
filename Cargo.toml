@@ -3,6 +3,10 @@ name = "lemon-lisp"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "lemon_lisp"
+path = "src/lib.rs"
 
 [dependencies]
+rug = "1.22.0"
+
