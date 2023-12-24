@@ -46,6 +46,30 @@ impl<'a> TokenStream<'a> {
             Some(Ok(Token::Symbol(tmp_char)))
         }
     }
+
+    fn parse_string(&mut self) -> TokenResult {
+        let mut state = State::Normal;
+        let mut tmp_str = String::new();
+
+        for ch in self.char_iter.by_ref() {
+            match state {
+                State::Normal => match ch {
+                    '\\' => state = State::Escaped,
+                    '"' => return Ok(Token::String(tmp_str)),
+                    _ => tmp_str.push(ch),
+                },
+                State::Escaped => {
+                    match ch {
+                        '"' => tmp_str.push('"'),
+                        'n' => tmp_str.push('\n'),
+                        _ => tmp_str.push(ch),
+                    }
+                    state = State::Normal
+                }
+            }
+        }
+        Err(TokenizeError::UnclosedString)
+    }
 }
 
 impl<'a> Iterator for TokenStream<'a> {
@@ -67,6 +91,15 @@ impl<'a> Iterator for TokenStream<'a> {
                     self.parse_tmp_char()
                 }
                 ' ' | '\n' | '\t' => self.parse_tmp_char(),
+                '"' => {
+                    let result = self.parse_string();
+                    if self.char_buffer.is_empty() {
+                        Some(result)
+                    } else {
+                        self.next_token = Some(result);
+                        Some(Err(TokenizeError::UnexpectedChar('"')))
+                    }
+                }
                 '\'' => {
                     if self.char_buffer.is_empty() {
                         Some(Ok(Token::Quote))
