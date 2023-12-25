@@ -18,7 +18,7 @@ pub struct TokenStream<'a> {
 }
 
 impl<'a> TokenStream<'a> {
-    pub fn from_str(s: &'a str) -> Self {
+    pub fn new(s: &'a str) -> Self {
         Self {
             next_token: None,
             char_buffer: vec![],
