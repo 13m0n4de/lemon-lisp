@@ -69,16 +69,16 @@ where
 
     fn parse_atom(&mut self) -> Result<Option<Value>, ParseError> {
         if let Some(next) = self.lexer.peek() {
-            match next.as_ref().unwrap() {
-                &Token::LParen => Ok(Some(self.parse_list()?)),
-                &Token::RParen => Err(ParseError::InvalidSyntax(Token::RParen)),
-                &Token::Quote => {
+            match next.clone()? {
+                Token::LParen => Ok(Some(self.parse_list()?)),
+                Token::RParen => Err(ParseError::InvalidSyntax(Token::RParen)),
+                Token::Quote => {
                     self.lexer.next();
                     Ok(Some(self.parse_quoted()?))
                 }
                 token => {
                     self.lexer.next();
-                    todo!()
+                    Ok(Some(token.try_into()?))
                 }
             }
         } else {
