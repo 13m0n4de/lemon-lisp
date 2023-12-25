@@ -1,18 +1,18 @@
 use super::Token;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenizeError {
     UnexpectedChar(char),
     UnclosedString,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ParseError {
     UnexpectedToken {
-        expected: &'static str,
-        found: &'static str,
+        expected: Token,
+        found: Token,
     },
-    MissingToken(&'static str),
+    MissingToken(Token),
     InvalidSyntax(Token),
     InvalidDigit(String),
     LexicalError(TokenizeError),

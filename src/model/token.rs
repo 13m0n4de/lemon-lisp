@@ -1,6 +1,6 @@
 use rug::{Float, Integer};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     LParen,
     RParen,
