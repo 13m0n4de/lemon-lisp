@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use lemon_lisp::{
-        lexer::{TokenStream, TokenizeError},
-        token::Token::*,
+        lexer::TokenStream,
+        model::{Token::*, TokenizeError},
     };
     use rug::Float;
 
@@ -14,7 +14,7 @@ mod tests {
                     $(($input, $expected)),+
                 ];
                 for (input, expected) in test_data {
-                    let token_stream = TokenStream::from_str(input);
+                    let token_stream = TokenStream::new(input);
                     assert_eq!(token_stream.tokenize(), expected);
                 }
             }
