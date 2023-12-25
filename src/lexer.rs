@@ -2,7 +2,7 @@ use rug::ops::CompleteRound;
 use rug::{Complete, Float, Integer};
 use std::str::Chars;
 
-use crate::token::Token;
+use crate::model::Token;
 
 enum State {
     Normal,
