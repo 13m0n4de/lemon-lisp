@@ -2,20 +2,14 @@ use rug::ops::CompleteRound;
 use rug::{Complete, Float, Integer};
 use std::str::Chars;
 
-use crate::model::Token;
+use crate::model::{Token, TokenizeError};
 
 enum State {
     Normal,
     Escaped,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum TokenizeError {
-    UnexpectedChar(char),
-    UnclosedString,
-}
-
-type TokenResult = Result<Token, TokenizeError>;
+pub type TokenResult = Result<Token, TokenizeError>;
 
 pub struct TokenStream<'a> {
     next_token: Option<TokenResult>,
