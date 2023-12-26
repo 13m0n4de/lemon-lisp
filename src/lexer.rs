@@ -141,7 +141,9 @@ impl<'a> Iterator for TokenStream<'a> {
                     }
                 }
 
-                // quote
+                // 引用
+                // 当缓冲区为空时解析为 Quote
+                // 不为空时说明在符号中间插入了单引号，不合语法
                 '\'' => {
                     if self.char_buffer.is_empty() {
                         Some(Ok(Token::Quote))
