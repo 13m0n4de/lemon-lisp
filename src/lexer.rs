@@ -26,8 +26,8 @@ pub struct TokenStream<'a> {
 impl<'a> TokenStream<'a> {
     /// 创建标记流
     /// ```rust
-    /// use lemon_lisp::lexer::TokenStream;
-    ///
+    /// # use lemon_lisp::lexer::TokenStream;
+    /// #
     /// let expression = "(+ 1 2)";
     /// let token_stream = TokenStream::new(expression);
     /// ```
@@ -83,19 +83,21 @@ impl<'a> TokenStream<'a> {
 
     /// 进行词法解析，返回标记列表
     /// ```rust
-    /// use lemon_lisp::{
-    ///     lexer::TokenStream,
-    ///     model::Token
-    /// };
-    ///
+    /// # use lemon_lisp::{
+    /// #     lexer::TokenStream,
+    /// #     model::Token
+    /// # };
+    /// #
     /// let token_stream = TokenStream::new("(+ 1)");
-    /// let token_result = token_stream.tokenize();
     ///
     /// assert_eq!(
     ///     Ok(vec![
-    ///         Token::LParen, Token::Symbol("+".to_string()), Token::Integer(1.into()), Token::RParen
+    ///         Token::LParen,
+    ///         Token::Symbol("+".into()),
+    ///         Token::Integer(1.into()),
+    ///         Token::RParen
     ///     ]),
-    ///     token_result
+    ///     token_stream.tokenize()
     /// );
     /// ```
     pub fn tokenize(mut self) -> Result<Vec<Token>, TokenizeError> {
