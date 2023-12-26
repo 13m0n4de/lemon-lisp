@@ -1,3 +1,4 @@
+use core::fmt;
 use rug::{Complete, Float, Integer};
 
 use super::{ParseError, Token};
@@ -28,7 +29,7 @@ impl TryFrom<Token> for Value {
     /// # use lemon_lisp::model::{Token, Value};
     /// #
     /// let integer_token = Token::Integer(rug::Integer::from(123));
-    /// 
+    ///
     /// assert_eq!(
     ///     Ok(Value::Integer(rug::Integer::from(123))),
     ///     Value::try_from(integer_token),
@@ -92,6 +93,33 @@ impl TryFrom<Token> for Value {
                 }
                 _ => Ok(Value::Symbol(symbol)),
             },
+        }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Void => write!(f, "#<void>"),
+            Value::Integer(integer) => write!(f, "{}", integer),
+            Value::Float(float) => write!(f, "{}", float.to_f64()),
+            Value::Bool(bool) => match bool {
+                true => write!(f, "#t"),
+                false => write!(f, "#f"),
+            },
+            Value::Symbol(symbol) => write!(f, "{}", symbol),
+            Value::String(string) => write!(f, "\"{}\"", string),
+            Value::List(list) => {
+                write!(
+                    f,
+                    "({})",
+                    list.iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<String>>()
+                        .join(" ")
+                )
+            }
+            Value::Quoted(value) => write!(f, "'{}", value),
         }
     }
 }
