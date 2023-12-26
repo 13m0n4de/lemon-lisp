@@ -2,7 +2,7 @@ use rug::{Complete, Float, Integer};
 
 use super::{ParseError, Token};
 
-/// [`Value`] 枚举包含了所有可能的 Lisp 值，包括原子、列表等等。
+/// 包含了所有可能的 Lisp 值，包括原子、列表等等。
 #[derive(Debug, PartialEq)]
 pub enum Value {
     Void,
