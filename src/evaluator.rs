@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::model::{Environment, Keyword, Lambda, RuntimeError, Value};
+use crate::model::{Closure, Environment, Keyword, RuntimeError, TailRecursiveClosure, Value};
 
 #[derive(Default)]
 pub struct Evaluator;
@@ -11,7 +11,7 @@ impl Evaluator {
     pub fn eval_value(&self, value: &Value, env: Rc<RefCell<Environment>>) -> ValueResult {
         match value {
             Value::Void => Ok(Value::Void),
-            Value::Lambda { .. } => Ok(Value::Void),
+            Value::Closure { .. } => Ok(Value::Void),
             Value::Symbol(symbol) => self.eval_symbol(symbol, env),
             Value::List(list) => self.eval_list(list, env),
             Value::Quoted(box_value) => Ok(*box_value.clone()),
@@ -30,30 +30,20 @@ impl Evaluator {
     fn eval_list(&self, list: &[Value], env: Rc<RefCell<Environment>>) -> ValueResult {
         let (first, rest) = list.split_first().ok_or(RuntimeError::EmptyList)?;
         match first {
-            Value::Lambda { .. } => {
+            Value::Closure(closure) => {
                 let params: Vec<Value> = rest
                     .iter()
                     .map(|value| self.eval_value(value, env.clone()))
                     .try_collect()?;
-                self.eval_lambda(first, &params, env)
+                self.eval_closure(closure, &params, env)
             }
             Value::Symbol(_) | Value::List(_) => {
                 let value = self.eval_value(first, env.clone())?;
                 match value {
-                    Value::Lambda { .. } => self.eval_lambda(&value, rest, env),
-                    Value::TailRecursion {
-                        lambda,
-                        updates,
-                        break_condition,
-                        return_expr,
-                    } => self.eval_tail_recursion(
-                        lambda,
-                        updates,
-                        *break_condition,
-                        *return_expr,
-                        rest,
-                        env,
-                    ),
+                    Value::Closure(closure) => self.eval_closure(&closure, rest, env),
+                    Value::TailRecursiveClosure(tail_recursive_closure) => {
+                        self.eval_tail_recursive_closure(&tail_recursive_closure, rest, env)
+                    }
                     _ => Err(RuntimeError::NonCallableValue(value.clone())),
                 }
             }
@@ -65,32 +55,66 @@ impl Evaluator {
         }
     }
 
-    fn eval_lambda(
+    fn eval_closure(
         &self,
-        lambda: &Value,
+        closure: &Closure,
         args: &[Value],
         env: Rc<RefCell<Environment>>,
     ) -> ValueResult {
-        if let Value::Lambda(Lambda {
-            name: _name,
-            params,
-            body,
-            environment: lambda_env,
-        }) = lambda
-        {
-            let new_env = Environment::extend(lambda_env.clone());
-            for (i, param) in params.iter().enumerate() {
-                let arg = self.eval_value(&args[i], env.clone())?;
-                new_env.borrow_mut().set(param, arg);
-            }
+        let new_env = Environment::extend(closure.environment.clone());
+        for (i, param) in closure.params.iter().enumerate() {
+            let arg = self.eval_value(&args[i], env.clone())?;
+            new_env.borrow_mut().set(param, arg);
+        }
 
-            let (last_expr, preceding_expr) = body.split_last().unwrap();
-            for expr in preceding_expr {
+        let (last_expr, preceding_expr) = closure.body.split_last().unwrap();
+        for expr in preceding_expr {
+            self.eval_value(expr, new_env.clone())?;
+        }
+        self.eval_value(last_expr, new_env)
+    }
+
+    fn eval_tail_recursive_closure(
+        &self,
+        tail_recursive_closure: &TailRecursiveClosure,
+        args: &[Value],
+        env: Rc<RefCell<Environment>>,
+    ) -> Result<Value, RuntimeError> {
+        let TailRecursiveClosure {
+            closure,
+            updates,
+            break_condition,
+            return_expr,
+        } = tail_recursive_closure;
+
+        let new_env = Environment::extend(closure.environment.clone());
+        for (i, param) in closure.params.iter().enumerate() {
+            let arg = self.eval_value(&args[i], env.clone())?;
+            new_env.borrow_mut().set(param, arg);
+        }
+
+        for expr in &closure.body {
+            self.eval_value(expr, new_env.clone())?;
+        }
+
+        loop {
+            let args: Vec<Value> = updates
+                .iter()
+                .map(|update| self.eval_value(update, new_env.clone()))
+                .try_collect()?;
+            closure.params.iter().zip(args).for_each(|(param, arg)| {
+                new_env.borrow_mut().set(param, arg);
+            });
+
+            for expr in &closure.body {
                 self.eval_value(expr, new_env.clone())?;
             }
-            self.eval_value(last_expr, new_env)
-        } else {
-            Err(RuntimeError::NonCallableValue(lambda.clone()))
+            if self
+                .eval_value(break_condition, new_env.clone())?
+                .try_as_bool()?
+            {
+                break self.eval_value(return_expr, new_env);
+            }
         }
     }
 
@@ -109,14 +133,15 @@ impl Evaluator {
                     .map(|x| x.try_as_symbol().map(String::from))
                     .try_collect()?;
 
-                let lambda = optimize_lambda(Lambda {
+                let closure = Closure {
                     name: Some(name.to_string()),
                     params,
                     body: body.to_vec(),
                     environment: Rc::new((*env).clone()),
-                })?;
+                };
+                let closure = tail_recursive_optimization(closure)?;
 
-                env.borrow_mut().set(name, lambda);
+                env.borrow_mut().set(name, closure);
                 Ok(Value::Void)
             }
             [value, ..] => Err(RuntimeError::TypeError {
@@ -135,26 +160,26 @@ impl Evaluator {
                     .map(|x| x.try_as_symbol().map(String::from))
                     .try_collect()?;
 
-                let lambda = Lambda {
+                let closure = Closure {
                     name: None,
                     params,
                     body: body.to_vec(),
                     environment: Rc::new((*env).clone()),
                 };
 
-                Ok(Value::Lambda(lambda))
+                Ok(Value::Closure(closure))
             }
             [Value::Symbol(first), body @ ..] => {
                 let params = vec![first.to_string()];
 
-                let lambda = Value::Lambda(Lambda {
+                let closure = Closure {
                     name: None,
                     params,
                     body: body.to_vec(),
                     environment: Rc::new((*env).clone()),
-                });
+                };
 
-                Ok(lambda)
+                Ok(Value::Closure(closure))
             }
             [value, ..] => Err(RuntimeError::TypeError {
                 expected: "symbol or list",
@@ -163,73 +188,34 @@ impl Evaluator {
             [] => Err(RuntimeError::EmptyList),
         }
     }
-
-    fn eval_tail_recursion(
-        &self,
-        lambda: Lambda,
-        updates: Vec<Value>,
-        break_condition: Value,
-        return_expr: Value,
-        args: &[Value],
-        env: Rc<RefCell<Environment>>,
-    ) -> Result<Value, RuntimeError> {
-        let new_env = Environment::extend(lambda.environment);
-        for (i, param) in lambda.params.iter().enumerate() {
-            let arg = self.eval_value(&args[i], env.clone())?;
-            new_env.borrow_mut().set(param, arg);
-        }
-
-        for expr in &lambda.body {
-            self.eval_value(expr, new_env.clone())?;
-        }
-
-        loop {
-            let args: Vec<Value> = updates
-                .iter()
-                .map(|update| self.eval_value(update, new_env.clone()))
-                .try_collect()?;
-            lambda.params.iter().zip(args).for_each(|(param, arg)| {
-                new_env.borrow_mut().set(param, arg);
-            });
-
-            for expr in &lambda.body {
-                self.eval_value(expr, new_env.clone())?;
-            }
-            if self
-                .eval_value(&break_condition, new_env.clone())?
-                .try_as_bool()?
-            {
-                break self.eval_value(&return_expr, new_env);
-            }
-        }
-    }
 }
 
-fn optimize_lambda(lambda: Lambda) -> ValueResult {
-    if let Some((last_expr, preceding_expr)) = lambda.body.split_last() &&
+fn tail_recursive_optimization(closure: Closure) -> ValueResult {
+    if let Some((last_expr, preceding_expr)) = closure.body.split_last() &&
         let Value::List(last_list) = last_expr
     {
         match last_list.as_slice() {
-            [Value::Symbol(symbol), params @ ..] if Some(symbol) == lambda.name.as_ref() => {
-                Ok(Value::TailRecursion {
-                    lambda: Lambda {
-                        name: lambda.name,
+            [Value::Symbol(symbol), params @ ..] if Some(symbol) == closure.name.as_ref() => {
+                let tail_recursive_closure = TailRecursiveClosure {
+                    closure: Closure {
+                        name: closure.name,
                         params: params
                             .iter()
                             .map(|p| p.try_as_symbol().map(String::from))
                             .try_collect()?,
                         body: preceding_expr.to_vec(),
-                        environment: lambda.environment
+                        environment: closure.environment
                     },
                     updates: params.to_vec(),
                     break_condition: Value::Bool(false).into(),
                     return_expr: Value::Void.into(),
-                })
+                };
+                Ok(Value::TailRecursiveClosure(tail_recursive_closure))
             }
             // [Value::Keyword(Keyword::If)] => todo!(),
-            _ => Ok(Value::Lambda(lambda))
+            _ => Ok(Value::Closure(closure))
         }
     } else {
-        Ok(Value::Lambda(lambda))
+        Ok(Value::Closure(closure))
     }
 }

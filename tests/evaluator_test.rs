@@ -3,7 +3,7 @@ mod tests {
     use lemon_lisp::{
         evaluator::Evaluator,
         lexer::TokenStream,
-        model::{Environment, Lambda, Value},
+        model::{Closure, Environment, TailRecursiveClosure, Value},
         parser::Parser,
     };
 
@@ -29,7 +29,7 @@ mod tests {
     }
 
     #[test]
-    fn test_define_lambda() {
+    fn test_define_closure() {
         let token_stream = TokenStream::new("(define (add-one n) (+ n 1))");
         let mut parser = Parser::new(token_stream);
         let parse_result = parser.parse();
@@ -43,7 +43,7 @@ mod tests {
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
-        let lambda = Lambda {
+        let closure = Closure {
             name: Some("add-one".to_string()),
             params: vec!["n".to_string()],
             body: vec![Value::List(vec![
@@ -55,7 +55,7 @@ mod tests {
         };
 
         assert_eq!(
-            Some(Value::Lambda(lambda)),
+            Some(Value::Closure(closure)),
             environment.borrow().get("add-one")
         );
     }
@@ -74,7 +74,7 @@ mod tests {
         let evaluate_result = evaluator.eval_value(value, environment.clone());
 
         assert_eq!(
-            Ok(Value::Lambda(Lambda {
+            Ok(Value::Closure(Closure {
                 name: None,
                 params: vec!["a".to_string(), "b".to_string()],
                 body: vec![Value::List(vec![
@@ -89,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn test_optimize_tail_recursion() {
+    fn test_optimize_tail_recursive_closure() {
         let token_stream = TokenStream::new("(define (loop) (loop))");
         let mut parser = Parser::new(token_stream);
         let parse_result = parser.parse();
@@ -103,18 +103,19 @@ mod tests {
 
         assert_eq!(Ok(Value::Void), evaluate_result);
 
+        let tail_recursive_closure_closure = TailRecursiveClosure {
+            closure: Closure {
+                name: Some("loop".into()),
+                params: vec![],
+                body: vec![],
+                environment: Environment::new(),
+            },
+            updates: vec![],
+            break_condition: Value::Bool(false).into(),
+            return_expr: Value::Void.into(),
+        };
         assert_eq!(
-            Some(Value::TailRecursion {
-                lambda: Lambda {
-                    name: Some("loop".into()),
-                    params: vec![],
-                    body: vec![],
-                    environment: Environment::new(),
-                },
-                updates: vec![],
-                break_condition: Value::Bool(false).into(),
-                return_expr: Value::Void.into()
-            }),
+            Some(Value::TailRecursiveClosure(tail_recursive_closure_closure)),
             environment.borrow().get("loop")
         );
     }
