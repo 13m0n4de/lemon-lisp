@@ -138,30 +138,30 @@ impl Evaluator {
                     .map(|x| x.try_as_symbol().map(String::from))
                     .try_collect()?;
 
-                let lambda = Value::Lambda(Lambda {
+                let lambda = Lambda {
                     params,
                     body: body.to_vec(),
                     environment: Rc::new((*env).clone()),
-                });
+                };
 
-                Ok(lambda)
+                Ok(Value::Lambda(lambda))
             }
             [Value::Symbol(first), body @ ..] => {
                 let params = vec![first.to_string()];
 
-                let lambda = Value::Lambda(Lambda {
+                let lambda = Lambda {
                     params,
                     body: body.to_vec(),
                     environment: Rc::new((*env).clone()),
-                });
+                };
 
-                Ok(lambda)
+                Ok(Value::Lambda(lambda))
             }
             [value, ..] => Err(RuntimeError::TypeError {
                 expected: "symbol or list",
                 founded: value.clone(),
             }),
-            _ => Err(RuntimeError::EmptyList),
+            [] => Err(RuntimeError::EmptyList),
         }
     }
 }
