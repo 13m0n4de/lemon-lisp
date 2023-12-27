@@ -2,7 +2,7 @@ use core::fmt;
 use rug::{Complete, Float, Integer};
 use std::{cell::RefCell, rc::Rc};
 
-use super::{Environment, ParseError, RuntimeError, Token};
+use super::{Environment, Keyword, ParseError, RuntimeError, Token};
 
 /// 包含了所有可能的 Lisp 值，包括原子、列表等等。
 #[derive(Debug, PartialEq, Clone)]
@@ -24,19 +24,6 @@ pub struct Lambda {
     pub params: Vec<String>,
     pub body: Vec<Value>,
     pub environment: Rc<RefCell<Environment>>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Keyword {
-    Define,
-}
-
-impl fmt::Display for Keyword {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Keyword::Define => write!(f, "define"),
-        }
-    }
 }
 
 impl TryFrom<Token> for Value {
@@ -115,6 +102,7 @@ impl TryFrom<Token> for Value {
                     Ok(Value::Integer(value))
                 }
                 "define" => Ok(Value::Keyword(Keyword::Define)),
+                "lambda" => Ok(Value::Keyword(Keyword::Lambda)),
                 _ => Ok(Value::Symbol(symbol)),
             },
         }

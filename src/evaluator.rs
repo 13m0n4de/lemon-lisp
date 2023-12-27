@@ -55,7 +55,8 @@ impl Evaluator {
                 }
             }
             Value::Keyword(keyword) => match keyword {
-                Keyword::Define => self.evaluate_define(rest, env.clone()),
+                Keyword::Define => self.evaluate_keyword_define(rest, env.clone()),
+                Keyword::Lambda => self.evaluate_keyword_lambda(rest, env.clone()),
             },
             _ => Err(RuntimeError::NonCallableValue(first.clone())),
         }
@@ -89,7 +90,11 @@ impl Evaluator {
         }
     }
 
-    fn evaluate_define(&self, list: &[Value], env: Rc<RefCell<Environment>>) -> ValueResult {
+    fn evaluate_keyword_define(
+        &self,
+        list: &[Value],
+        env: Rc<RefCell<Environment>>,
+    ) -> ValueResult {
         match list {
             [Value::Symbol(name), value] => {
                 env.borrow_mut()
@@ -104,20 +109,59 @@ impl Evaluator {
                     .map(|x| x.try_as_symbol().map(String::from))
                     .try_collect()?;
 
+                let lambda = Lambda {
+                    params,
+                    body: body.to_vec(),
+                    environment: Rc::new((*env).clone()),
+                };
+
+                env.borrow_mut().set(name, Value::Lambda(lambda));
+                Ok(Value::Void)
+            }
+            [value, ..] => Err(RuntimeError::TypeError {
+                expected: "symbol or list",
+                founded: value.clone(),
+            }),
+            [] => Err(RuntimeError::EmptyList),
+        }
+    }
+
+    fn evaluate_keyword_lambda(
+        &self,
+        list: &[Value],
+        env: Rc<RefCell<Environment>>,
+    ) -> ValueResult {
+        match list {
+            [Value::List(first), body @ ..] => {
+                let params: Vec<String> = first
+                    .iter()
+                    .map(|x| x.try_as_symbol().map(String::from))
+                    .try_collect()?;
+
                 let lambda = Value::Lambda(Lambda {
                     params,
                     body: body.to_vec(),
                     environment: Rc::new((*env).clone()),
                 });
 
-                env.borrow_mut().set(name, lambda);
-                Ok(Value::Void)
+                Ok(lambda)
+            }
+            [Value::Symbol(first), body @ ..] => {
+                let params = vec![first.to_string()];
+
+                let lambda = Value::Lambda(Lambda {
+                    params,
+                    body: body.to_vec(),
+                    environment: Rc::new((*env).clone()),
+                });
+
+                Ok(lambda)
             }
             [value, ..] => Err(RuntimeError::TypeError {
-                expected: "symbol",
+                expected: "symbol or list",
                 founded: value.clone(),
             }),
-            [] => Err(RuntimeError::EmptyList),
+            _ => Err(RuntimeError::EmptyList),
         }
     }
 }

@@ -43,7 +43,7 @@ mod tests {
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
-        let lambda = Value::Lambda(Lambda {
+        let lambda = Lambda {
             params: vec!["n".to_string()],
             body: vec![Value::List(vec![
                 Value::Symbol("+".into()),
@@ -51,8 +51,38 @@ mod tests {
                 Value::Integer(1.into()),
             ])],
             environment: Environment::new(),
-        });
+        };
 
-        assert_eq!(Some(lambda), environment.borrow().get("add-one"));
+        assert_eq!(
+            Some(Value::Lambda(lambda)),
+            environment.borrow().get("add-one")
+        );
+    }
+
+    #[test]
+    fn test_lambda() {
+        let token_stream = TokenStream::new("(lambda (a b) (+ a b))");
+        let mut parser = Parser::new(token_stream);
+        let parse_result = parser.parse();
+
+        assert!(parse_result.is_ok());
+
+        let environment = Environment::new();
+        let evaluator = Evaluator;
+        let value = &parse_result.unwrap()[0];
+        let evaluate_result = evaluator.evaluate_with_envrionment(value, environment.clone());
+
+        assert_eq!(
+            Ok(Value::Lambda(Lambda {
+                params: vec!["a".to_string(), "b".to_string()],
+                body: vec![Value::List(vec![
+                    Value::Symbol("+".into()),
+                    Value::Symbol("a".into()),
+                    Value::Symbol("b".into()),
+                ])],
+                environment: Environment::new(),
+            })),
+            evaluate_result
+        );
     }
 }
