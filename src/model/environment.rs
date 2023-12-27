@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::{RuntimeError, Value};
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Environment {
     parent: Option<Rc<RefCell<Environment>>>,
     vars: HashMap<String, Value>,

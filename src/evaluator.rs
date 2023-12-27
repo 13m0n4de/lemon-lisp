@@ -104,14 +104,13 @@ impl Evaluator {
                     .map(|x| x.try_as_symbol().map(String::from))
                     .try_collect()?;
 
-                env.borrow_mut().set(
-                    name,
-                    Value::Lambda(Lambda {
-                        params,
-                        body: body.to_vec(),
-                        environment: env.clone(),
-                    }),
-                );
+                let lambda = Value::Lambda(Lambda {
+                    params,
+                    body: body.to_vec(),
+                    environment: Rc::new((*env).clone()),
+                });
+
+                env.borrow_mut().set(name, lambda);
                 Ok(Value::Void)
             }
             [value, ..] => Err(RuntimeError::TypeError {
