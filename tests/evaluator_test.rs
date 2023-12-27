@@ -103,7 +103,7 @@ mod tests {
 
         assert_eq!(Ok(Value::Void), evaluate_result);
 
-        let tail_recursive_closure_closure = TailRecursiveClosure {
+        let tail_recursive_closure = TailRecursiveClosure {
             closure: Closure {
                 name: Some("loop".into()),
                 params: vec![],
@@ -115,7 +115,7 @@ mod tests {
             return_expr: Value::Void.into(),
         };
         assert_eq!(
-            Some(Value::TailRecursiveClosure(tail_recursive_closure_closure)),
+            Some(Value::TailRecursiveClosure(tail_recursive_closure)),
             environment.borrow().get("loop")
         );
     }
