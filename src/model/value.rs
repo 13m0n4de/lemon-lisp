@@ -15,12 +15,19 @@ pub enum Value {
     String(String),
     List(Vec<Value>),
     Quoted(Box<Value>),
-    Lambda(Lambda),
     Keyword(Keyword),
+    Lambda(Lambda),
+    TailRecursion {
+        lambda: Lambda,
+        updates: Vec<Value>,
+        break_condition: Box<Value>,
+        return_expr: Box<Value>,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Lambda {
+    pub name: Option<String>,
     pub params: Vec<String>,
     pub body: Vec<Value>,
     pub environment: Rc<RefCell<Environment>>,
@@ -132,8 +139,15 @@ impl fmt::Display for Value {
                 )
             }
             Value::Quoted(value) => write!(f, "'{}", value),
-            Value::Lambda(_) => write!(f, "#<lambda>"),
             Value::Keyword(keyword) => write!(f, "#<keyword:{}>", keyword),
+            Value::Lambda(lambda) => match &lambda.name {
+                Some(name) => write!(f, "#<lambda:{}>", name),
+                None => write!(f, "#<lambda>"),
+            },
+            Value::TailRecursion { lambda, .. } => match &lambda.name {
+                Some(name) => write!(f, "#<lambda:{}>", name),
+                None => write!(f, "#<lambda>"),
+            },
         }
     }
 }

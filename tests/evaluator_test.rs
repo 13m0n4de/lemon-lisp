@@ -18,7 +18,7 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         for value in parse_result.unwrap() {
-            let evaluate_result = evaluator.evaluate_with_envrionment(&value, environment.clone());
+            let evaluate_result = evaluator.eval_value(&value, environment.clone());
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
@@ -39,11 +39,12 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         for value in parse_result.unwrap() {
-            let evaluate_result = evaluator.evaluate_with_envrionment(&value, environment.clone());
+            let evaluate_result = evaluator.eval_value(&value, environment.clone());
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
         let lambda = Lambda {
+            name: Some("add-one".to_string()),
             params: vec!["n".to_string()],
             body: vec![Value::List(vec![
                 Value::Symbol("+".into()),
@@ -70,10 +71,11 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         let value = &parse_result.unwrap()[0];
-        let evaluate_result = evaluator.evaluate_with_envrionment(value, environment.clone());
+        let evaluate_result = evaluator.eval_value(value, environment.clone());
 
         assert_eq!(
             Ok(Value::Lambda(Lambda {
+                name: None,
                 params: vec!["a".to_string(), "b".to_string()],
                 body: vec![Value::List(vec![
                     Value::Symbol("+".into()),
@@ -83,6 +85,37 @@ mod tests {
                 environment: Environment::new(),
             })),
             evaluate_result
+        );
+    }
+
+    #[test]
+    fn test_optimize_tail_recursion() {
+        let token_stream = TokenStream::new("(define (loop) (loop))");
+        let mut parser = Parser::new(token_stream);
+        let parse_result = parser.parse();
+
+        assert!(parse_result.is_ok());
+
+        let environment = Environment::new();
+        let evaluator = Evaluator;
+        let value = &parse_result.unwrap()[0];
+        let evaluate_result = evaluator.eval_value(value, environment.clone());
+
+        assert_eq!(Ok(Value::Void), evaluate_result);
+
+        assert_eq!(
+            Some(Value::TailRecursion {
+                lambda: Lambda {
+                    name: Some("loop".into()),
+                    params: vec![],
+                    body: vec![],
+                    environment: Environment::new(),
+                },
+                updates: vec![],
+                break_condition: Value::Bool(false).into(),
+                return_expr: Value::Void.into()
+            }),
+            environment.borrow().get("loop")
         );
     }
 }
