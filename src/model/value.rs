@@ -1,10 +1,11 @@
 use core::fmt;
 use rug::{Complete, Float, Integer};
+use std::{cell::RefCell, rc::Rc};
 
-use super::{ParseError, Token};
+use super::{Environment, ParseError, RuntimeError, Token};
 
 /// 包含了所有可能的 Lisp 值，包括原子、列表等等。
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Void,
     Integer(Integer),
@@ -14,6 +15,28 @@ pub enum Value {
     String(String),
     List(Vec<Value>),
     Quoted(Box<Value>),
+    Lambda(Lambda),
+    Keyword(Keyword),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Lambda {
+    pub params: Vec<String>,
+    pub body: Vec<Value>,
+    pub environment: Rc<RefCell<Environment>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Keyword {
+    Define,
+}
+
+impl fmt::Display for Keyword {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Keyword::Define => write!(f, "define"),
+        }
+    }
 }
 
 impl TryFrom<Token> for Value {
@@ -91,6 +114,7 @@ impl TryFrom<Token> for Value {
 
                     Ok(Value::Integer(value))
                 }
+                "define" => Ok(Value::Keyword(Keyword::Define)),
                 _ => Ok(Value::Symbol(symbol)),
             },
         }
@@ -120,6 +144,34 @@ impl fmt::Display for Value {
                 )
             }
             Value::Quoted(value) => write!(f, "'{}", value),
+            Value::Lambda(_) => write!(f, "#<lambda>"),
+            Value::Keyword(keyword) => write!(f, "#<keyword:{}>", keyword),
         }
+    }
+}
+
+macro_rules! try_as_type {
+    ( $( $name:ident; $variant:pat => $result:expr; $ty:ty; $expected:expr ),* $(,)? ) => {
+        $(
+            pub fn $name(&self) -> Result<$ty, RuntimeError> {
+                match self {
+                    $variant => $result,
+                    _ => Err(RuntimeError::TypeError {
+                        expected: $expected,
+                        founded: self.clone()
+                    }),
+                }
+            }
+        )*
+    }
+}
+
+impl Value {
+    try_as_type! {
+        try_as_bool; Value::Bool(b) => Ok(*b); bool; "bool",
+        try_as_integer; Value::Integer(i) => Ok(i.clone()); Integer; "integer",
+        try_as_float; Value::Float(f) => Ok(f.clone()); Float; "float",
+        try_as_symbol; Value::Symbol(s) => Ok(s); &String; "symbol",
+        try_as_list; Value::List(l) => Ok(l); &Vec<Value>; "list",
     }
 }

@@ -2,7 +2,7 @@
 mod test {
     use lemon_lisp::{
         lexer::TokenStream,
-        model::{ParseError, Token, TokenizeError, Value::*},
+        model::{Keyword, ParseError, Token, TokenizeError, Value::*},
         parser::Parser,
     };
     use rug::Float;
@@ -27,12 +27,12 @@ mod test {
         test_area_of_a_circle,
         "(define r 10) (define pi 3.14) (* pi (* r r))" => Ok(vec![
             List(vec![
-                Symbol("define".into()),
+                Keyword(Keyword::Define),
                 Symbol("r".into()),
                 Integer(10.into()),
             ]),
             List(vec![
-                Symbol("define".into()),
+                Keyword(Keyword::Define),
                 Symbol("pi".into()),
                 Float(Float::with_val(53, 3.14)),
             ]),
@@ -52,7 +52,7 @@ mod test {
         test_quote,
         "(define a '(1 2 3))" => Ok(vec![
             List(vec![
-                Symbol("define".into()),
+                Keyword(Keyword::Define),
                 Symbol("a".into()),
                 Quoted(Box::new(
                     List(vec![
@@ -86,7 +86,7 @@ mod test {
              (print (string-append "Hello, " name))
              name)"# => Ok(vec![
             List(vec![
-                Symbol("define".into()),
+                Keyword(Keyword::Define),
                 List(vec![
                     Symbol("greet".into()),
                     Symbol("name".into())
