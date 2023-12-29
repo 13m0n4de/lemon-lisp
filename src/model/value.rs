@@ -1,7 +1,9 @@
 use core::fmt;
 use rug::{Complete, Float, Integer};
 
-use super::{Closure, Keyword, ParseError, RuntimeError, TailRecursiveClosure, Token};
+use super::{
+    Closure, InternalFunction, Keyword, ParseError, RuntimeError, TailRecursiveClosure, Token,
+};
 
 /// 包含了所有可能的 Lisp 值，包括原子、列表等等。
 #[derive(Debug, PartialEq, Clone)]
@@ -17,6 +19,7 @@ pub enum Value {
     Keyword(Keyword),
     Closure(Closure),
     TailRecursiveClosure(TailRecursiveClosure),
+    InternalFunction(InternalFunction),
 }
 
 impl TryFrom<Token> for Value {
@@ -127,13 +130,18 @@ impl fmt::Display for Value {
             Value::Quoted(value) => write!(f, "'{}", value),
             Value::Keyword(keyword) => write!(f, "#<keyword:{}>", keyword),
             Value::Closure(lambda) => match &lambda.name {
-                Some(name) => write!(f, "#<lambda:{}>", name),
-                None => write!(f, "#<lambda>"),
+                Some(name) => write!(f, "#<procedure:{}>", name),
+                None => write!(f, "#<procedure>"),
             },
-            Value::TailRecursiveClosure(tail_recursive_closure) => match &tail_recursive_closure.closure.name {
-                Some(name) => write!(f, "#<lambda:{}>", name),
-                None => write!(f, "#<lambda>"),
-            },
+            Value::TailRecursiveClosure(tail_recursive_closure) => {
+                match &tail_recursive_closure.closure.name {
+                    Some(name) => write!(f, "#<procedure:{}>", name),
+                    None => write!(f, "#<procedure>"),
+                }
+            }
+            Value::InternalFunction(internal_function) => {
+                write!(f, "#<procedure:{}>", internal_function.name)
+            }
         }
     }
 }

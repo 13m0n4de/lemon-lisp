@@ -5,7 +5,7 @@ mod keyword;
 mod token;
 mod value;
 
-pub use closure::{Closure, TailRecursiveClosure};
+pub use closure::{Closure, InternalFunction, TailRecursiveClosure};
 pub use environment::Environment;
 pub use error::{ParseError, RuntimeError, TokenizeError};
 pub use keyword::Keyword;
