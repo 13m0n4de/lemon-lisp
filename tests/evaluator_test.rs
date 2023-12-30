@@ -6,6 +6,7 @@ mod tests {
         model::{Closure, Environment, TailRecursiveClosure, Value},
         parser::Parser,
     };
+    use rug::Integer;
 
     #[test]
     fn test_define_var() {
@@ -23,7 +24,7 @@ mod tests {
         }
 
         assert_eq!(
-            Some(Value::Integer(2.into())),
+            Some(Value::from(Integer::from(2))),
             environment.borrow().get("a")
         );
     }
@@ -49,7 +50,7 @@ mod tests {
             body: vec![Value::List(vec![
                 Value::Symbol("+".into()),
                 Value::Symbol("n".into()),
-                Value::Integer(1.into()),
+                Value::from(Integer::from(1)),
             ])],
             environment: Environment::new(),
         };

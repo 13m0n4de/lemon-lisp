@@ -2,10 +2,13 @@
 mod test {
     use lemon_lisp::{
         lexer::TokenStream,
-        model::{Keyword, ParseError, Token, TokenizeError, Value::*},
+        model::{
+            Keyword, ParseError, Token, TokenizeError,
+            Value::{self, *},
+        },
         parser::Parser,
     };
-    use rug::Float;
+    use rug::{Float, Integer};
 
     macro_rules! test_parser {
         ($name:ident, $($input:expr => $expected:expr),* $(,)?) => {
@@ -29,12 +32,12 @@ mod test {
             List(vec![
                 Keyword(Keyword::Define),
                 Symbol("r".into()),
-                Integer(10.into()),
+                Value::from(Integer::from(10)),
             ]),
             List(vec![
                 Keyword(Keyword::Define),
                 Symbol("pi".into()),
-                Float(Float::with_val(53, 3.14)),
+                Value::from(Float::with_val(53, 3.14)),
             ]),
             List(vec![
                 Symbol("*".into()),
@@ -56,9 +59,9 @@ mod test {
                 Symbol("a".into()),
                 Quoted(Box::new(
                     List(vec![
-                        Integer(1.into()),
-                        Integer(2.into()),
-                        Integer(3.into()),
+                        Value::from(Integer::from(1)),
+                        Value::from(Integer::from(2)),
+                        Value::from(Integer::from(3)),
                     ])
                 )),
             ])
@@ -70,10 +73,10 @@ mod test {
             List(vec![
                 Symbol("quote".into()),
                 List(vec![
-                        Integer(1.into()),
-                        Integer(2.into()),
+                        Value::from(Integer::from(1)),
+                        Value::from(Integer::from(2)),
                         Quoted(Box::new(
-                            Integer(3.into()),
+                            Value::from(Integer::from(3)),
                         )),
                     ]),
             ])
