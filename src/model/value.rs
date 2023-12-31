@@ -1,10 +1,9 @@
 use core::fmt;
 use rug::{Complete, Float, Integer};
 
-use super::{
-    Closure, InternalFunction, Keyword, Numeric, ParseError, RuntimeError, TailRecursiveClosure,
-    Token,
-};
+use crate::internal::InternalFunction;
+
+use super::{Closure, Keyword, Numeric, ParseError, RuntimeError, TailRecursiveClosure, Token};
 
 /// 包含了所有可能的 Lisp 值，包括原子、列表等等。
 #[derive(Debug, PartialEq, Clone)]

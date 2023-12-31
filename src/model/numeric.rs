@@ -22,6 +22,11 @@ impl Add for Numeric {
     type Output = Numeric;
 
     fn add(self, rhs: Self) -> Self::Output {
-        todo!()
+        match (self, rhs) {
+            (Self::Integer(a), Self::Integer(b)) => Self::Integer(a + b),
+            (Self::Integer(a), Self::Float(b)) => Self::Float(a + b),
+            (Self::Float(a), Self::Integer(b)) => Self::Float(a + b),
+            (Self::Float(a), Self::Float(b)) => Self::Float(a + b),
+        }
     }
 }

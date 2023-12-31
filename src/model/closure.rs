@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use super::{Environment, RuntimeError, Value};
+use super::{Environment, Value};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Closure {
@@ -17,12 +17,3 @@ pub struct TailRecursiveClosure {
     pub break_condition: Box<Value>,
     pub return_expr: Box<Value>,
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct InternalFunction {
-    pub name: String,
-    pub function: Function,
-}
-
-pub type Function =
-    fn(args: &[Value], env: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;
