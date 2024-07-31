@@ -1,6 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::model::{Closure, Environment, Keyword, RuntimeError, TailRecursiveClosure, Value};
+use crate::{
+    internal::InternalFunction,
+    model::{Closure, Environment, Keyword, RuntimeError, TailRecursiveClosure, Value},
+};
 
 #[derive(Default)]
 pub struct Evaluator;
@@ -43,6 +46,9 @@ impl Evaluator {
                     Value::Closure(closure) => self.eval_closure(&closure, rest, env),
                     Value::TailRecursiveClosure(tail_recursive_closure) => {
                         self.eval_tail_recursive_closure(&tail_recursive_closure, rest, env)
+                    }
+                    Value::InternalFunction(internal_fn) => {
+                        self.eval_internal_fn(&internal_fn, rest, env)
                     }
                     _ => Err(RuntimeError::NonCallableValue(value.clone())),
                 }
@@ -118,6 +124,19 @@ impl Evaluator {
         }
     }
 
+    fn eval_internal_fn(
+        &self,
+        internal_fn: &InternalFunction,
+        args: &[Value],
+        env: Rc<RefCell<Environment>>,
+    ) -> ValueResult {
+        let args: Vec<Value> = args
+            .iter()
+            .map(|value| self.eval_value(value, env.clone()))
+            .try_collect()?;
+        (internal_fn.function)(&args, env)
+    }
+
     fn eval_keyword_define(&self, list: &[Value], env: Rc<RefCell<Environment>>) -> ValueResult {
         match list {
             [Value::Symbol(name), value] => {
@@ -191,8 +210,8 @@ impl Evaluator {
 }
 
 fn tail_recursive_optimization(closure: Closure) -> ValueResult {
-    if let Some((last_expr, preceding_expr)) = closure.body.split_last() &&
-        let Value::List(last_list) = last_expr
+    if let Some((last_expr, preceding_expr)) = closure.body.split_last()
+        && let Value::List(last_list) = last_expr
     {
         match last_list.as_slice() {
             [Value::Symbol(symbol), params @ ..] if Some(symbol) == closure.name.as_ref() => {
@@ -204,7 +223,7 @@ fn tail_recursive_optimization(closure: Closure) -> ValueResult {
                             .map(|p| p.try_as_symbol().map(String::from))
                             .try_collect()?,
                         body: preceding_expr.to_vec(),
-                        environment: closure.environment
+                        environment: closure.environment,
                     },
                     updates: params.to_vec(),
                     break_condition: Value::Bool(false).into(),
@@ -213,7 +232,7 @@ fn tail_recursive_optimization(closure: Closure) -> ValueResult {
                 Ok(Value::TailRecursiveClosure(tail_recursive_closure))
             }
             // [Value::Keyword(Keyword::If)] => todo!(),
-            _ => Ok(Value::Closure(closure))
+            _ => Ok(Value::Closure(closure)),
         }
     } else {
         Ok(Value::Closure(closure))
