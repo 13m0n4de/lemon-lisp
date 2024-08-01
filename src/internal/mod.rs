@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::model::{Environment, RuntimeError, Value};
 
-mod math;
+pub mod math;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct InternalFunction {
