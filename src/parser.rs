@@ -1,19 +1,19 @@
 use crate::{
-    lexer::TokenResult,
+    lexer::LexResult,
     model::{ParseError, Token, Value},
 };
 use std::iter::Peekable;
 
 pub struct Parser<I>
 where
-    I: Iterator<Item = TokenResult>,
+    I: Iterator<Item = LexResult>,
 {
     lexer: Peekable<I>,
 }
 
 impl<I> Parser<I>
 where
-    I: Iterator<Item = TokenResult>,
+    I: Iterator<Item = LexResult>,
 {
     pub fn new(lexer: I) -> Self {
         Self {
