@@ -18,54 +18,24 @@ impl fmt::Display for Numeric {
     }
 }
 
-impl Add for Numeric {
-    type Output = Numeric;
+macro_rules! impl_numeric_op {
+    ($trait:ident, $method:ident) => {
+        impl $trait for Numeric {
+            type Output = Numeric;
 
-    fn add(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::Integer(a), Self::Integer(b)) => Self::Integer(a + b),
-            (Self::Integer(a), Self::Float(b)) => Self::Float(a + b),
-            (Self::Float(a), Self::Integer(b)) => Self::Float(a + b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a + b),
+            fn $method(self, rhs: Self) -> Self::Output {
+                match (self, rhs) {
+                    (Self::Integer(a), Self::Integer(b)) => Self::Integer(a.$method(b)),
+                    (Self::Integer(a), Self::Float(b)) => Self::Float(a.$method(b)),
+                    (Self::Float(a), Self::Integer(b)) => Self::Float(a.$method(b)),
+                    (Self::Float(a), Self::Float(b)) => Self::Float(a.$method(b)),
+                }
+            }
         }
-    }
+    };
 }
 
-impl Sub for Numeric {
-    type Output = Numeric;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::Integer(a), Self::Integer(b)) => Self::Integer(a - b),
-            (Self::Integer(a), Self::Float(b)) => Self::Float(a - b),
-            (Self::Float(a), Self::Integer(b)) => Self::Float(a - b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a - b),
-        }
-    }
-}
-
-impl Mul for Numeric {
-    type Output = Numeric;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::Integer(a), Self::Integer(b)) => Self::Integer(a * b),
-            (Self::Integer(a), Self::Float(b)) => Self::Float(a * b),
-            (Self::Float(a), Self::Integer(b)) => Self::Float(a * b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a * b),
-        }
-    }
-}
-
-impl Div for Numeric {
-    type Output = Numeric;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::Integer(a), Self::Integer(b)) => Self::Integer(a / b),
-            (Self::Integer(a), Self::Float(b)) => Self::Float(a / b),
-            (Self::Float(a), Self::Integer(b)) => Self::Float(a / b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a / b),
-        }
-    }
-}
+impl_numeric_op!(Add, add);
+impl_numeric_op!(Sub, sub);
+impl_numeric_op!(Mul, mul);
+impl_numeric_op!(Div, div);
