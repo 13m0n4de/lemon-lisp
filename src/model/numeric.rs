@@ -1,5 +1,5 @@
 use core::fmt;
-use std::ops::Add;
+use std::ops::{Add, Div, Mul, Sub};
 
 use rug::{Float, Integer};
 
@@ -27,6 +27,45 @@ impl Add for Numeric {
             (Self::Integer(a), Self::Float(b)) => Self::Float(a + b),
             (Self::Float(a), Self::Integer(b)) => Self::Float(a + b),
             (Self::Float(a), Self::Float(b)) => Self::Float(a + b),
+        }
+    }
+}
+
+impl Sub for Numeric {
+    type Output = Numeric;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Integer(a), Self::Integer(b)) => Self::Integer(a - b),
+            (Self::Integer(a), Self::Float(b)) => Self::Float(a - b),
+            (Self::Float(a), Self::Integer(b)) => Self::Float(a - b),
+            (Self::Float(a), Self::Float(b)) => Self::Float(a - b),
+        }
+    }
+}
+
+impl Mul for Numeric {
+    type Output = Numeric;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Integer(a), Self::Integer(b)) => Self::Integer(a * b),
+            (Self::Integer(a), Self::Float(b)) => Self::Float(a * b),
+            (Self::Float(a), Self::Integer(b)) => Self::Float(a * b),
+            (Self::Float(a), Self::Float(b)) => Self::Float(a * b),
+        }
+    }
+}
+
+impl Div for Numeric {
+    type Output = Numeric;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Integer(a), Self::Integer(b)) => Self::Integer(a / b),
+            (Self::Integer(a), Self::Float(b)) => Self::Float(a / b),
+            (Self::Float(a), Self::Integer(b)) => Self::Float(a / b),
+            (Self::Float(a), Self::Float(b)) => Self::Float(a / b),
         }
     }
 }

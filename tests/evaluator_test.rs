@@ -1,9 +1,12 @@
 #[cfg(test)]
 mod tests {
+    use std::{cell::RefCell, rc::Rc};
+
     use lemon_lisp::{
         evaluator::Evaluator,
+        internal::InternalFunction,
         lexer::TokenStream,
-        model::{Closure, Environment, TailRecursiveClosure, Value},
+        model::{Closure, Environment, Numeric, RuntimeError, TailRecursiveClosure, Value},
         parser::Parser,
     };
     use rug::Integer;
@@ -119,5 +122,40 @@ mod tests {
             Some(Value::TailRecursiveClosure(tail_recursive_closure)),
             environment.borrow().get("loop")
         );
+    }
+
+    #[test]
+    fn test_internal_fn() {
+        let token_stream = TokenStream::new("(+ 2 3)");
+        let mut parser = Parser::new(token_stream);
+        let parse_result = parser.parse();
+
+        assert!(parse_result.is_ok());
+
+        // (+ num1 num2 num3) => 0 + num1 + num2 + num3
+        let add = |args: &[Value], _: Rc<RefCell<Environment>>| -> Result<Value, RuntimeError> {
+            let result = args
+                .iter()
+                .try_fold(Numeric::Integer(0.into()), |acc, arg| {
+                    arg.try_as_numeric().map(|n| n + acc)
+                })?;
+
+            Ok(result.into())
+        };
+
+        let environment = Environment::new();
+        environment.borrow_mut().set(
+            "+",
+            Value::InternalFunction(InternalFunction {
+                name: "+".to_string(),
+                function: add,
+            }),
+        );
+
+        let evaluator = Evaluator;
+        let value = &parse_result.unwrap()[0];
+        let evaluate_result = evaluator.eval_value(value, environment.clone());
+
+        assert_eq!(Ok(Value::from(Integer::from(5))), evaluate_result);
     }
 }
