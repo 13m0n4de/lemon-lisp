@@ -39,6 +39,10 @@ pub enum RuntimeError {
         expected: usize,
         founded: usize,
     },
+    InvalidArity {
+        expected: usize,
+        founded: usize,
+    },
     DivideByZero,
     NonCallableValue(Value),
     EmptyList,
@@ -97,6 +101,59 @@ impl fmt::Display for ParseError {
             }
             ParseError::UnexpectedEOF => {
                 write!(f, "Unexpected EOF")
+            }
+        }
+    }
+}
+
+impl fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RuntimeError::UndefinedVariable(name) => {
+                write!(f, "Undefined variable: {}", name)
+            }
+            RuntimeError::UndefinedFunction(name) => {
+                write!(f, "Undefined function: {}", name)
+            }
+            RuntimeError::TypeError { expected, founded } => {
+                write!(f, "TypeError: expected {}, found {}", expected, founded)
+            }
+            RuntimeError::OperationError {
+                operation,
+                lhs_type,
+                rhs_type,
+            } => {
+                write!(
+                    f,
+                    "OperationError: {} between {} and {}",
+                    operation, lhs_type, rhs_type
+                )
+            }
+            RuntimeError::InvalidListLength { expected, founded } => {
+                write!(
+                    f,
+                    "InvalidListLength: expected {}, found {}",
+                    expected, founded
+                )
+            }
+            RuntimeError::InvalidArity { expected, founded } => {
+                write!(
+                    f,
+                    "Invalid arity: expected {} arguments, but found {}",
+                    expected, founded
+                )
+            }
+            RuntimeError::DivideByZero => {
+                write!(f, "DivideByZero")
+            }
+            RuntimeError::NonCallableValue(value) => {
+                write!(f, "NonCallableValue: {}", value)
+            }
+            RuntimeError::EmptyList => {
+                write!(f, "EmptyList")
+            }
+            RuntimeError::SyntaxError(parse_error) => {
+                write!(f, "SyntaxError: {}", parse_error)
             }
         }
     }
