@@ -53,13 +53,26 @@ pub fn div(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, Runtime
         }),
         [single_arg] => single_arg
             .try_as_numeric()
-            .map(|n| Numeric::Float(Float::with_val(53, 1.0)) / n)
-            .map(Into::into),
-        [first_arg, rest @ ..] => rest
-            .iter()
-            .try_fold(first_arg.try_as_numeric()?, |acc, arg| {
-                arg.try_as_numeric().map(|n| acc / n)
+            .and_then(|n| {
+                if n.is_zero() {
+                    Err(RuntimeError::DivideByZero)
+                } else {
+                    Ok(Numeric::Float(Float::with_val(53, 1.0)) / n)
+                }
             })
             .map(Into::into),
+        [first_arg, rest @ ..] => {
+            let first_numeric = first_arg.try_as_numeric()?;
+            let result = rest.iter().try_fold(first_numeric, |acc, arg| {
+                arg.try_as_numeric().and_then(|n| {
+                    if n.is_zero() {
+                        Err(RuntimeError::DivideByZero)
+                    } else {
+                        Ok(acc / n)
+                    }
+                })
+            });
+            Ok(result?.into())
+        }
     }
 }

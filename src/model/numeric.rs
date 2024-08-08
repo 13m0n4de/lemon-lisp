@@ -39,3 +39,12 @@ impl_numeric_op!(Add, add);
 impl_numeric_op!(Sub, sub);
 impl_numeric_op!(Mul, mul);
 impl_numeric_op!(Div, div);
+
+impl Numeric {
+    pub fn is_zero(&self) -> bool {
+        match self {
+            Numeric::Integer(n) => n.is_zero(),
+            Numeric::Float(f) => f.is_zero(),
+        }
+    }
+}
