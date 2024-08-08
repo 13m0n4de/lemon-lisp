@@ -39,6 +39,10 @@ pub enum RuntimeError {
         expected: usize,
         founded: usize,
     },
+    InvalidArity {
+        expected: usize,
+        founded: usize,
+    },
     DivideByZero,
     NonCallableValue(Value),
     EmptyList,
@@ -129,6 +133,13 @@ impl fmt::Display for RuntimeError {
                 write!(
                     f,
                     "InvalidListLength: expected {}, found {}",
+                    expected, founded
+                )
+            }
+            RuntimeError::InvalidArity { expected, founded } => {
+                write!(
+                    f,
+                    "Invalid arity: expected {} arguments, but found {}",
                     expected, founded
                 )
             }
