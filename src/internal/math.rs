@@ -6,59 +6,60 @@ use crate::model::{Environment, Numeric, RuntimeError, Value};
 
 pub fn add(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
     // (+ num1 num2 num3) => 0 + num1 + num2 + num3
-    let result = args
-        .iter()
+    args.iter()
         .try_fold(Numeric::Integer(0.into()), |acc, arg| {
             arg.try_as_numeric().map(|n| acc + n)
-        })?;
-
-    Ok(result.into())
+        })
+        .map(Into::into)
 }
 
 pub fn sub(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
     // (- num) => 0 - num
     // (- num1 num2 num3) => num1 - num2 - num3
-    if args.len() == 1 {
-        let result = args[0]
+    match args {
+        [] => Err(RuntimeError::InvalidArity {
+            expected: 1,
+            founded: 0,
+        }),
+        [single_arg] => single_arg
             .try_as_numeric()
-            .map(|n| Numeric::Integer(0.into()) - n)?;
-        Ok(result.into())
-    } else {
-        let result = args
+            .map(|n| Numeric::Integer(0.into()) - n)
+            .map(Into::into),
+        [first_arg, rest @ ..] => rest
             .iter()
-            .skip(1)
-            .try_fold(args[0].try_as_numeric()?, |acc, arg| {
+            .try_fold(first_arg.try_as_numeric()?, |acc, arg| {
                 arg.try_as_numeric().map(|n| acc - n)
-            })?;
-        Ok(result.into())
+            })
+            .map(Into::into),
     }
 }
 
 pub fn mul(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
     // (* num1 num2 num3) => 1 * num1 * num2 * num3
-    let result = args
-        .iter()
+    args.iter()
         .try_fold(Numeric::Integer(1.into()), |acc, arg| {
             arg.try_as_numeric().map(|n| acc * n)
-        })?;
-    Ok(result.into())
+        })
+        .map(Into::into)
 }
 
 pub fn div(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
     // (/ num) => 1 / num
     // (/ num1 num2 num3) => num1 / num2 / num3
-    if args.len() == 1 {
-        let result = args[0]
+    match args {
+        [] => Err(RuntimeError::InvalidArity {
+            expected: 1,
+            founded: 0,
+        }),
+        [single_arg] => single_arg
             .try_as_numeric()
-            .map(|n| Numeric::Float(Float::with_val(53, 1.0)) / n)?;
-        Ok(result.into())
-    } else {
-        let result = args
+            .map(|n| Numeric::Float(Float::with_val(53, 1.0)) / n)
+            .map(Into::into),
+        [first_arg, rest @ ..] => rest
             .iter()
-            .skip(1)
-            .try_fold(args[0].try_as_numeric()?, |acc, arg| {
+            .try_fold(first_arg.try_as_numeric()?, |acc, arg| {
                 arg.try_as_numeric().map(|n| acc / n)
-            })?;
-        Ok(result.into())
+            })
+            .map(Into::into),
     }
 }
