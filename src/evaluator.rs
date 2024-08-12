@@ -56,6 +56,7 @@ impl Evaluator {
             Value::Keyword(keyword) => match keyword {
                 Keyword::Define => self.eval_keyword_define(rest, env.clone()),
                 Keyword::Lambda => self.eval_keyword_lambda(rest, env.clone()),
+                Keyword::If => self.eval_keyword_if(rest, env.clone()),
             },
             _ => Err(RuntimeError::NonCallableValue(first.clone())),
         }
@@ -205,6 +206,22 @@ impl Evaluator {
                 founded: value.clone(),
             }),
             [] => Err(RuntimeError::EmptyList),
+        }
+    }
+
+    fn eval_keyword_if(&self, list: &[Value], env: Rc<RefCell<Environment>>) -> EvalResult {
+        match list {
+            [condition, then_expr, else_expr] => {
+                let cond_result = self.eval_value(condition, env.clone())?;
+                match cond_result {
+                    Value::Bool(false) => self.eval_value(else_expr, env),
+                    _ => self.eval_value(then_expr, env),
+                }
+            }
+            _ => Err(RuntimeError::InvalidArity {
+                expected: 3,
+                founded: list.len(),
+            }),
         }
     }
 }
