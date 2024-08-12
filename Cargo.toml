@@ -9,4 +9,4 @@ path = "src/lib.rs"
 
 [dependencies]
 rug = "1.22.0"
-
+rustyline = { version = "14.0.0", features = ["derive"] }
