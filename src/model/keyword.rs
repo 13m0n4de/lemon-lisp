@@ -4,6 +4,7 @@ use core::fmt;
 pub enum Keyword {
     Define,
     Lambda,
+    If,
 }
 
 impl fmt::Display for Keyword {
@@ -11,6 +12,7 @@ impl fmt::Display for Keyword {
         match self {
             Keyword::Define => write!(f, "define"),
             Keyword::Lambda => write!(f, "lambda"),
+            Keyword::If => write!(f, "if"),
         }
     }
 }

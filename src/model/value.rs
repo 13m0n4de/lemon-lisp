@@ -98,6 +98,7 @@ impl TryFrom<Token> for Value {
                 }
                 "define" => Ok(Value::Keyword(Keyword::Define)),
                 "lambda" => Ok(Value::Keyword(Keyword::Lambda)),
+                "if" => Ok(Value::Keyword(Keyword::If)),
                 _ => Ok(Value::Symbol(symbol)),
             },
         }
