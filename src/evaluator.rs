@@ -22,10 +22,10 @@ impl Evaluator {
         }
     }
 
-    fn eval_symbol(&self, symbol: &String, env: Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_symbol(&self, symbol: &str, env: Rc<RefCell<Environment>>) -> EvalResult {
         let value = env
             .borrow()
-            .get(symbol.as_str())
+            .get(symbol)
             .ok_or(RuntimeError::UndefinedVariable(symbol.into()))?;
         Ok(value)
     }
@@ -227,31 +227,30 @@ impl Evaluator {
 }
 
 fn tail_recursive_optimization(closure: Closure) -> EvalResult {
-    if let Some((last_expr, preceding_expr)) = closure.body.split_last()
-        && let Value::List(last_list) = last_expr
-    {
-        match last_list.as_slice() {
-            [Value::Symbol(symbol), params @ ..] if Some(symbol) == closure.name.as_ref() => {
-                let tail_recursive_closure = TailRecursiveClosure {
-                    closure: Closure {
-                        name: closure.name,
-                        params: params
-                            .iter()
-                            .map(|p| p.try_as_symbol().map(String::from))
-                            .try_collect()?,
-                        body: preceding_expr.to_vec(),
-                        environment: closure.environment,
-                    },
-                    updates: params.to_vec(),
-                    break_condition: Value::Bool(false).into(),
-                    return_expr: Value::Void.into(),
-                };
-                Ok(Value::TailRecursiveClosure(tail_recursive_closure))
+    match closure.body.split_last() {
+        Some((Value::List(last_list), preceding_expr)) => {
+            match last_list.as_slice() {
+                [Value::Symbol(symbol), params @ ..] if Some(symbol) == closure.name.as_ref() => {
+                    let tail_recursive_closure = TailRecursiveClosure {
+                        closure: Closure {
+                            name: closure.name,
+                            params: params
+                                .iter()
+                                .map(|p| p.try_as_symbol().map(String::from))
+                                .try_collect()?,
+                            body: preceding_expr.to_vec(),
+                            environment: closure.environment,
+                        },
+                        updates: params.to_vec(),
+                        break_condition: Value::Bool(false).into(),
+                        return_expr: Value::Void.into(),
+                    };
+                    Ok(Value::TailRecursiveClosure(tail_recursive_closure))
+                }
+                // [Value::Keyword(Keyword::If)] => todo!(),
+                _ => Ok(Value::Closure(closure)),
             }
-            // [Value::Keyword(Keyword::If)] => todo!(),
-            _ => Ok(Value::Closure(closure)),
         }
-    } else {
-        Ok(Value::Closure(closure))
+        _ => Ok(Value::Closure(closure)),
     }
 }
