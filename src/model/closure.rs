@@ -11,7 +11,7 @@ pub struct Closure {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct TailRecursiveClosure {
+pub struct TailCall {
     pub closure: Closure,
     pub updates: Vec<Value>,
     pub break_condition: Box<Value>,

@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     internal::InternalFunction,
-    model::{Closure, Environment, Keyword, RuntimeError, TailRecursiveClosure, Value},
+    model::{Closure, Environment, Keyword, RuntimeError, TailCall, Value},
 };
 
 #[derive(Default)]
@@ -44,9 +44,7 @@ impl Evaluator {
                 let value = self.eval_value(first, env.clone())?;
                 match value {
                     Value::Closure(closure) => self.eval_closure(&closure, rest, env),
-                    Value::TailRecursiveClosure(tail_recursive_closure) => {
-                        self.eval_tail_recursive_closure(&tail_recursive_closure, rest, env)
-                    }
+                    Value::TailCall(tail_call) => self.eval_tail_call(&tail_call, rest, env),
                     Value::InternalFunction(internal_fn) => {
                         self.eval_internal_fn(&internal_fn, rest, env)
                     }
@@ -81,18 +79,18 @@ impl Evaluator {
         self.eval_value(last_expr, new_env)
     }
 
-    fn eval_tail_recursive_closure(
+    fn eval_tail_call(
         &self,
-        tail_recursive_closure: &TailRecursiveClosure,
+        tail_call: &TailCall,
         args: &[Value],
         env: Rc<RefCell<Environment>>,
     ) -> Result<Value, RuntimeError> {
-        let TailRecursiveClosure {
+        let TailCall {
             closure,
             updates,
             break_condition,
             return_expr,
-        } = tail_recursive_closure;
+        } = tail_call;
 
         let new_env = Environment::extend(closure.environment.clone());
         for (i, param) in closure.params.iter().enumerate() {
@@ -159,7 +157,7 @@ impl Evaluator {
                     body: body.to_vec(),
                     environment: Rc::new((*env).clone()),
                 };
-                let closure = tail_recursive_optimization(closure)?;
+                let closure = optimize_tail_call(closure)?;
 
                 env.borrow_mut().set(name, closure);
                 Ok(Value::Void)
@@ -226,31 +224,97 @@ impl Evaluator {
     }
 }
 
-fn tail_recursive_optimization(closure: Closure) -> EvalResult {
+enum TailCallInfo {
+    Direct {
+        updates: Vec<Value>,
+    },
+    Conditional {
+        updates: Vec<Value>,
+        break_condition: Value,
+        return_expr: Value,
+    },
+}
+
+fn optimize_tail_call(closure: Closure) -> EvalResult {
+    let function_name = match &closure.name {
+        Some(name) => name,
+        None => return Ok(Value::Closure(closure)),
+    };
+
     match closure.body.split_last() {
         Some((Value::List(last_list), preceding_expr)) => {
-            match last_list.as_slice() {
-                [Value::Symbol(symbol), params @ ..] if Some(symbol) == closure.name.as_ref() => {
-                    let tail_recursive_closure = TailRecursiveClosure {
-                        closure: Closure {
-                            name: closure.name,
-                            params: params
-                                .iter()
-                                .map(|p| p.try_as_symbol().map(String::from))
-                                .try_collect()?,
-                            body: preceding_expr.to_vec(),
-                            environment: closure.environment,
-                        },
-                        updates: params.to_vec(),
-                        break_condition: Value::Bool(false).into(),
-                        return_expr: Value::Void.into(),
-                    };
-                    Ok(Value::TailRecursiveClosure(tail_recursive_closure))
-                }
-                // [Value::Keyword(Keyword::If)] => todo!(),
-                _ => Ok(Value::Closure(closure)),
+            match detect_tail_call(last_list, function_name) {
+                Some(TailCallInfo::Direct { updates }) => Ok(Value::from(TailCall {
+                    closure: Closure {
+                        name: closure.name,
+                        params: closure.params,
+                        body: preceding_expr.to_vec(),
+                        environment: closure.environment,
+                    },
+                    updates,
+                    break_condition: Value::Bool(false).into(),
+                    return_expr: Value::Void.into(),
+                })),
+                Some(TailCallInfo::Conditional {
+                    updates,
+                    break_condition,
+                    return_expr,
+                }) => Ok(Value::from(TailCall {
+                    closure: Closure {
+                        name: closure.name,
+                        params: closure.params,
+                        body: preceding_expr.to_vec(),
+                        environment: closure.environment,
+                    },
+                    updates,
+                    break_condition: break_condition.into(),
+                    return_expr: return_expr.into(),
+                })),
+                None => Ok(Value::Closure(closure)),
             }
         }
         _ => Ok(Value::Closure(closure)),
     }
+}
+
+fn detect_tail_call(expr: &[Value], function_name: &str) -> Option<TailCallInfo> {
+    match expr {
+        [Value::Symbol(symbol), params @ ..] if symbol == function_name => {
+            Some(TailCallInfo::Direct {
+                updates: params.to_vec(),
+            })
+        }
+        [Value::Keyword(Keyword::If), condition, then_expr, else_expr] => {
+            if let Some(then_params) = extract_self_call_params(then_expr, function_name) {
+                Some(TailCallInfo::Conditional {
+                    updates: then_params,
+                    break_condition: Value::List(vec![
+                        Value::Symbol("not".into()),
+                        condition.clone(),
+                    ]),
+                    return_expr: else_expr.clone(),
+                })
+            } else {
+                extract_self_call_params(else_expr, function_name).map(|else_params| {
+                    TailCallInfo::Conditional {
+                        updates: else_params,
+                        break_condition: condition.clone(),
+                        return_expr: then_expr.clone(),
+                    }
+                })
+            }
+        }
+        _ => None,
+    }
+}
+
+fn extract_self_call_params(expr: &Value, function_name: &str) -> Option<Vec<Value>> {
+    if let Value::List(list) = expr {
+        if let [Value::Symbol(symbol), params @ ..] = list.as_slice() {
+            if symbol == function_name {
+                return Some(params.to_vec());
+            }
+        }
+    }
+    None
 }

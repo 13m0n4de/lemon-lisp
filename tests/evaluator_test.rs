@@ -6,7 +6,7 @@ mod tests {
         evaluator::Evaluator,
         internal::InternalFunction,
         lexer::TokenStream,
-        model::{Closure, Environment, Numeric, RuntimeError, TailRecursiveClosure, Value},
+        model::{Closure, Environment, Numeric, RuntimeError, TailCall, Value},
         parser::Parser,
     };
     use rug::Integer;
@@ -107,7 +107,7 @@ mod tests {
 
         assert_eq!(Ok(Value::Void), evaluate_result);
 
-        let tail_recursive_closure = TailRecursiveClosure {
+        let tail_recursive_closure = TailCall {
             closure: Closure {
                 name: Some("loop".into()),
                 params: vec![],
@@ -119,7 +119,7 @@ mod tests {
             return_expr: Value::Void.into(),
         };
         assert_eq!(
-            Some(Value::TailRecursiveClosure(tail_recursive_closure)),
+            Some(Value::TailCall(tail_recursive_closure)),
             environment.borrow().get("loop")
         );
     }
