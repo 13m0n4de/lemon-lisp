@@ -54,6 +54,13 @@ impl Interpreter {
                 function: math::div,
             }),
         );
+        env.borrow_mut().set(
+            "=",
+            Value::InternalFunction(InternalFunction {
+                name: "=".to_string(),
+                function: math::numeric_equal,
+            }),
+        );
 
         env
     }

@@ -76,3 +76,17 @@ pub fn div(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, Runtime
         }
     }
 }
+
+pub fn numeric_equal(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    if args.is_empty() {
+        return Err(RuntimeError::InvalidArity {
+            expected: 1,
+            founded: 0,
+        });
+    }
+
+    let numbers: Vec<Numeric> = args.iter().map(|arg| arg.try_as_numeric()).try_collect()?;
+    let result = numbers.iter().skip(1).all(|n| n == &numbers[0]);
+
+    Ok(result.into())
+}
