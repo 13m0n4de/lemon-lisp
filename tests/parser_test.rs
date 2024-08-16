@@ -1,3 +1,4 @@
+#[warn(clippy::all, clippy::pedantic)]
 #[cfg(test)]
 mod test {
     use lemon_lisp::{
@@ -69,7 +70,7 @@ mod test {
         // 调用 quote 函数 和使用 ' 符号不同
         // ' 符号在语法解析阶段就会处理为对应的 Object
         // 而 (quote something) 通过调用函数的方式返回对应的 Object
-        r#"(quote (1 2 '3))"# => Ok(vec![
+        r"(quote (1 2 '3))" => Ok(vec![
             List(vec![
                 Symbol("quote".into()),
                 List(vec![

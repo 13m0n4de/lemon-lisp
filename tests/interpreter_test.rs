@@ -1,3 +1,4 @@
+#[warn(clippy::all, clippy::pedantic)]
 #[cfg(test)]
 mod tests {
     use lemon_lisp::{interpreter::Interpreter, model::Value};

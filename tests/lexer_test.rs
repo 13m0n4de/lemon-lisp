@@ -1,3 +1,4 @@
+#[warn(clippy::all, clippy::pedantic)]
 #[cfg(test)]
 mod tests {
     use lemon_lisp::{
@@ -65,10 +66,10 @@ mod tests {
 
     test_lexer!(
         test_comment,
-        r#"(define (square n)
+        r"(define (square n)
              ; A semi-colon starts a line comment.
              ; The expression below is the function body.
-             (filled-rectangle n n))"# => Ok(vec![
+             (filled-rectangle n n))" => Ok(vec![
             LParen, Symbol("define".into()),
                 LParen, Symbol("square".into()), Symbol("n".into()), RParen,
                 LParen, Symbol("filled-rectangle".into()), Symbol("n".into()), Symbol("n".into()), RParen,
