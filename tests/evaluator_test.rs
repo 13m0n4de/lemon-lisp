@@ -1,12 +1,13 @@
+#[warn(clippy::all, clippy::pedantic)]
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
+    use std::rc::Rc;
 
     use lemon_lisp::{
         evaluator::Evaluator,
         internal::InternalFunction,
         lexer::TokenStream,
-        model::{Closure, Environment, Numeric, RuntimeError, TailRecursiveClosure, Value},
+        model::{Environment, Numeric, RuntimeError, Value},
         parser::Parser,
     };
     use rug::Integer;
@@ -22,14 +23,11 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         for value in parse_result.unwrap() {
-            let evaluate_result = evaluator.eval_value(&value, environment.clone());
+            let evaluate_result = evaluator.eval_value(&value, &environment);
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
-        assert_eq!(
-            Some(Value::from(Integer::from(2))),
-            environment.borrow().get("a")
-        );
+        assert_eq!(Some(Value::from(Integer::from(2))), environment.get("a"));
     }
 
     #[test]
@@ -43,25 +41,25 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         for value in parse_result.unwrap() {
-            let evaluate_result = evaluator.eval_value(&value, environment.clone());
+            let evaluate_result = evaluator.eval_value(&value, &environment);
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
-        let closure = Closure {
-            name: Some("add-one".to_string()),
-            params: vec!["n".to_string()],
-            body: vec![Value::List(vec![
-                Value::Symbol("+".into()),
-                Value::Symbol("n".into()),
-                Value::from(Integer::from(1)),
-            ])],
-            environment: Environment::new(),
+        if let Some(Value::Closure(closure)) = environment.get("add-one") {
+            assert_eq!(Some("add-one".to_string()), closure.name);
+            assert_eq!(vec!["n".to_string()], closure.params);
+            assert_eq!(
+                vec![Value::List(vec![
+                    Value::Symbol("+".into()),
+                    Value::Symbol("n".into()),
+                    Value::from(Integer::from(1)),
+                ])],
+                closure.body
+            );
+            assert!(closure.environment.upgrade().is_some());
+        } else {
+            panic!("Expected to find a closure named 'add-one' in the environment");
         };
-
-        assert_eq!(
-            Some(Value::Closure(closure)),
-            environment.borrow().get("add-one")
-        );
     }
 
     #[test]
@@ -75,25 +73,28 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         let value = &parse_result.unwrap()[0];
-        let evaluate_result = evaluator.eval_value(value, environment.clone());
+        let evaluate_result = evaluator.eval_value(value, &environment);
 
-        assert_eq!(
-            Ok(Value::Closure(Closure {
-                name: None,
-                params: vec!["a".to_string(), "b".to_string()],
-                body: vec![Value::List(vec![
-                    Value::Symbol("+".into()),
-                    Value::Symbol("a".into()),
-                    Value::Symbol("b".into()),
-                ])],
-                environment: Environment::new(),
-            })),
-            evaluate_result
-        );
+        match evaluate_result {
+            Ok(Value::Closure(closure)) => {
+                assert_eq!(None, closure.name);
+                assert_eq!(vec!["a".to_string(), "b".to_string()], closure.params);
+                assert_eq!(
+                    vec![Value::List(vec![
+                        Value::Symbol("+".into()),
+                        Value::Symbol("a".into()),
+                        Value::Symbol("b".into()),
+                    ])],
+                    closure.body
+                );
+                assert!(closure.environment.upgrade().is_some());
+            }
+            _ => panic!("Expected a closure"),
+        }
     }
 
     #[test]
-    fn test_optimize_tail_recursive_closure() {
+    fn test_optimize_tail_call() {
         let token_stream = TokenStream::new("(define (loop) (loop))");
         let mut parser = Parser::new(token_stream);
         let parse_result = parser.parse();
@@ -103,25 +104,21 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         let value = &parse_result.unwrap()[0];
-        let evaluate_result = evaluator.eval_value(value, environment.clone());
+        let evaluate_result = evaluator.eval_value(value, &environment);
 
         assert_eq!(Ok(Value::Void), evaluate_result);
-
-        let tail_recursive_closure = TailRecursiveClosure {
-            closure: Closure {
-                name: Some("loop".into()),
-                params: vec![],
-                body: vec![],
-                environment: Environment::new(),
-            },
-            updates: vec![],
-            break_condition: Value::Bool(false).into(),
-            return_expr: Value::Void.into(),
+        match environment.get("loop") {
+            Some(Value::TailCall(tail_call)) => {
+                assert_eq!(Some("loop".to_string()), tail_call.closure.name);
+                assert!(tail_call.closure.params.is_empty());
+                assert!(tail_call.closure.body.is_empty());
+                assert!(tail_call.closure.environment.upgrade().is_some());
+                assert!(tail_call.updates.is_empty());
+                assert_eq!(Value::Bool(false), *tail_call.break_condition);
+                assert_eq!(Value::Void, *tail_call.return_expr);
+            }
+            _ => panic!("Expected a tail call"),
         };
-        assert_eq!(
-            Some(Value::TailRecursiveClosure(tail_recursive_closure)),
-            environment.borrow().get("loop")
-        );
     }
 
     #[test]
@@ -133,7 +130,7 @@ mod tests {
         assert!(parse_result.is_ok());
 
         // (+ num1 num2 num3) => 0 + num1 + num2 + num3
-        let add = |args: &[Value], _: Rc<RefCell<Environment>>| -> Result<Value, RuntimeError> {
+        let add = |args: &[Value], _: &Rc<Environment>| -> Result<Value, RuntimeError> {
             let result = args
                 .iter()
                 .try_fold(Numeric::Integer(0.into()), |acc, arg| {
@@ -144,7 +141,7 @@ mod tests {
         };
 
         let environment = Environment::new();
-        environment.borrow_mut().set(
+        environment.set(
             "+",
             Value::InternalFunction(InternalFunction {
                 name: "+".to_string(),
@@ -154,7 +151,7 @@ mod tests {
 
         let evaluator = Evaluator;
         let value = &parse_result.unwrap()[0];
-        let evaluate_result = evaluator.eval_value(value, environment.clone());
+        let evaluate_result = evaluator.eval_value(value, &environment);
 
         assert_eq!(Ok(Value::from(Integer::from(5))), evaluate_result);
     }

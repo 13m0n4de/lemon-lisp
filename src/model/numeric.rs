@@ -3,7 +3,7 @@ use std::ops::{Add, Div, Mul, Sub};
 
 use rug::{Float, Integer};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Numeric {
     Integer(Integer),
     Float(Float),
@@ -45,6 +45,17 @@ impl Numeric {
         match self {
             Numeric::Integer(n) => n.is_zero(),
             Numeric::Float(f) => f.is_zero(),
+        }
+    }
+}
+
+impl PartialEq for Numeric {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Integer(a), Self::Integer(b)) => a == b,
+            (Self::Float(a), Self::Float(b)) => a == b,
+            (Self::Integer(a), Self::Float(b)) => &Float::with_val(53, a) == b,
+            (Self::Float(a), Self::Integer(b)) => a == &Float::with_val(53, b),
         }
     }
 }

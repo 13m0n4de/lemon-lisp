@@ -1,10 +1,10 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use rug::Float;
 
 use crate::model::{Environment, Numeric, RuntimeError, Value};
 
-pub fn add(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+pub fn add(args: &[Value], _: &Rc<Environment>) -> Result<Value, RuntimeError> {
     // (+ num1 num2 num3) => 0 + num1 + num2 + num3
     args.iter()
         .try_fold(Numeric::Integer(0.into()), |acc, arg| {
@@ -13,7 +13,7 @@ pub fn add(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, Runtime
         .map(Into::into)
 }
 
-pub fn sub(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+pub fn sub(args: &[Value], _: &Rc<Environment>) -> Result<Value, RuntimeError> {
     // (- num) => 0 - num
     // (- num1 num2 num3) => num1 - num2 - num3
     match args {
@@ -34,7 +34,7 @@ pub fn sub(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, Runtime
     }
 }
 
-pub fn mul(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+pub fn mul(args: &[Value], _: &Rc<Environment>) -> Result<Value, RuntimeError> {
     // (* num1 num2 num3) => 1 * num1 * num2 * num3
     args.iter()
         .try_fold(Numeric::Integer(1.into()), |acc, arg| {
@@ -43,7 +43,7 @@ pub fn mul(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, Runtime
         .map(Into::into)
 }
 
-pub fn div(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+pub fn div(args: &[Value], _: &Rc<Environment>) -> Result<Value, RuntimeError> {
     // (/ num) => 1 / num
     // (/ num1 num2 num3) => num1 / num2 / num3
     match args {
@@ -75,4 +75,18 @@ pub fn div(args: &[Value], _: Rc<RefCell<Environment>>) -> Result<Value, Runtime
             Ok(result?.into())
         }
     }
+}
+
+pub fn numeric_equal(args: &[Value], _: &Rc<Environment>) -> Result<Value, RuntimeError> {
+    if args.is_empty() {
+        return Err(RuntimeError::InvalidArity {
+            expected: 1,
+            founded: 0,
+        });
+    }
+
+    let numbers: Vec<Numeric> = args.iter().map(|arg| arg.try_as_numeric()).try_collect()?;
+    let result = numbers.iter().skip(1).all(|n| n == &numbers[0]);
+
+    Ok(result.into())
 }

@@ -1,3 +1,4 @@
+#[warn(clippy::all, clippy::pedantic)]
 #[cfg(test)]
 mod tests {
     use lemon_lisp::{
@@ -56,7 +57,7 @@ mod tests {
         test_area_of_a_circle,
         "(define r 10) (define pi 3.14) (* pi (* r r))" =>  Ok(vec![
             LParen, Symbol("define".into()), Symbol("r".into()), Integer(10.into()), RParen,
-            LParen, Symbol("define".into()), Symbol("pi".into()), Float(Float::with_val(53, 3.14)), RParen,
+            LParen, Symbol("define".into()), Symbol("pi".into()), Float(Float::with_val(53, 3.140)), RParen,
             LParen, Symbol("*".into()), Symbol("pi".into()),
                 LParen, Symbol("*".into()), Symbol("r".into()), Symbol("r".into()), RParen,
             RParen
@@ -65,10 +66,10 @@ mod tests {
 
     test_lexer!(
         test_comment,
-        r#"(define (square n)
+        r"(define (square n)
              ; A semi-colon starts a line comment.
              ; The expression below is the function body.
-             (filled-rectangle n n))"# => Ok(vec![
+             (filled-rectangle n n))" => Ok(vec![
             LParen, Symbol("define".into()),
                 LParen, Symbol("square".into()), Symbol("n".into()), RParen,
                 LParen, Symbol("filled-rectangle".into()), Symbol("n".into()), Symbol("n".into()), RParen,

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use crate::model::{Environment, RuntimeError, Value};
 
@@ -10,5 +10,4 @@ pub struct InternalFunction {
     pub function: Function,
 }
 
-pub type Function =
-    fn(args: &[Value], env: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;
+pub type Function = fn(args: &[Value], env: &Rc<Environment>) -> Result<Value, RuntimeError>;
