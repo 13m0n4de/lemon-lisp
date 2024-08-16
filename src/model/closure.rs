@@ -1,7 +1,4 @@
-use std::{
-    cell::RefCell,
-    rc::{Rc, Weak},
-};
+use std::rc::{Rc, Weak};
 
 use super::{Environment, Value};
 
@@ -10,7 +7,7 @@ pub struct Closure {
     pub name: Option<String>,
     pub params: Vec<String>,
     pub body: Vec<Value>,
-    pub environment: Weak<RefCell<Environment>>,
+    pub environment: Weak<Environment>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -26,7 +23,7 @@ impl Closure {
         name: Option<String>,
         params: Vec<String>,
         body: Vec<Value>,
-        env: &Rc<RefCell<Environment>>,
+        env: &Rc<Environment>,
     ) -> Self {
         Self {
             name,

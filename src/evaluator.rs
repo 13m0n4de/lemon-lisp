@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     internal::InternalFunction,
@@ -11,7 +11,7 @@ pub struct Evaluator;
 type EvalResult = Result<Value, RuntimeError>;
 
 impl Evaluator {
-    pub fn eval_value(&self, value: &Value, env: &Rc<RefCell<Environment>>) -> EvalResult {
+    pub fn eval_value(&self, value: &Value, env: &Rc<Environment>) -> EvalResult {
         match value {
             Value::Void | Value::Closure { .. } => Ok(Value::Void),
             Value::Symbol(symbol) => Self::eval_symbol(symbol, env),
@@ -21,15 +21,14 @@ impl Evaluator {
         }
     }
 
-    fn eval_symbol(symbol: &str, env: &Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_symbol(symbol: &str, env: &Rc<Environment>) -> EvalResult {
         let value = env
-            .borrow()
             .get(symbol)
             .ok_or(RuntimeError::UndefinedVariable(symbol.into()))?;
         Ok(value)
     }
 
-    fn eval_list(&self, list: &[Value], env: &Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_list(&self, list: &[Value], env: &Rc<Environment>) -> EvalResult {
         let (first, rest) = list.split_first().ok_or(RuntimeError::EmptyList)?;
         match first {
             Value::Closure(closure) => {
@@ -59,12 +58,7 @@ impl Evaluator {
         }
     }
 
-    fn eval_closure(
-        &self,
-        closure: &Closure,
-        args: &[Value],
-        env: &Rc<RefCell<Environment>>,
-    ) -> EvalResult {
+    fn eval_closure(&self, closure: &Closure, args: &[Value], env: &Rc<Environment>) -> EvalResult {
         if closure.params.len() != args.len() {
             return Err(RuntimeError::InvalidArity {
                 expected: closure.params.len(),
@@ -79,7 +73,7 @@ impl Evaluator {
         let new_env = Environment::extend(&closure_env);
         for (i, param) in closure.params.iter().enumerate() {
             let arg = self.eval_value(&args[i], env)?;
-            new_env.borrow_mut().set(param, arg);
+            new_env.set(param, arg);
         }
 
         let (last_expr, preceding_expr) = closure.body.split_last().unwrap();
@@ -93,7 +87,7 @@ impl Evaluator {
         &self,
         tail_call: &TailCall,
         args: &[Value],
-        env: &Rc<RefCell<Environment>>,
+        env: &Rc<Environment>,
     ) -> Result<Value, RuntimeError> {
         let TailCall {
             closure,
@@ -116,7 +110,7 @@ impl Evaluator {
         let new_env = Environment::extend(&closure_env);
         for (i, param) in closure.params.iter().enumerate() {
             let arg = self.eval_value(&args[i], env)?;
-            new_env.borrow_mut().set(param, arg);
+            new_env.set(param, arg);
         }
 
         for expr in &closure.body {
@@ -129,7 +123,7 @@ impl Evaluator {
                 .map(|update| self.eval_value(update, &new_env))
                 .try_collect()?;
             closure.params.iter().zip(args).for_each(|(param, arg)| {
-                new_env.borrow_mut().set(param, arg);
+                new_env.set(param, arg);
             });
 
             for expr in &closure.body {
@@ -145,7 +139,7 @@ impl Evaluator {
         &self,
         internal_fn: &InternalFunction,
         args: &[Value],
-        env: &Rc<RefCell<Environment>>,
+        env: &Rc<Environment>,
     ) -> EvalResult {
         let args: Vec<Value> = args
             .iter()
@@ -154,10 +148,10 @@ impl Evaluator {
         (internal_fn.function)(&args, env)
     }
 
-    fn eval_keyword_define(&self, list: &[Value], env: &Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_keyword_define(&self, list: &[Value], env: &Rc<Environment>) -> EvalResult {
         match list {
             [Value::Symbol(name), value] => {
-                env.borrow_mut().set(name, self.eval_value(value, env)?);
+                env.set(name, self.eval_value(value, env)?);
                 Ok(Value::Void)
             }
             [Value::List(lambda_info), body @ ..] => {
@@ -171,7 +165,7 @@ impl Evaluator {
                 let closure = Closure::new(Some(name.to_string()), params, body.to_vec(), env);
                 let closure = optimize_tail_call(closure);
 
-                env.borrow_mut().set(name, closure);
+                env.set(name, closure);
                 Ok(Value::Void)
             }
             [value, ..] => Err(RuntimeError::TypeError {
@@ -182,7 +176,7 @@ impl Evaluator {
         }
     }
 
-    fn eval_keyword_lambda(list: &[Value], env: &Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_keyword_lambda(list: &[Value], env: &Rc<Environment>) -> EvalResult {
         match list {
             [Value::List(first), body @ ..] => {
                 let params: Vec<String> = first
@@ -205,7 +199,7 @@ impl Evaluator {
         }
     }
 
-    fn eval_keyword_if(&self, list: &[Value], env: &Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_keyword_if(&self, list: &[Value], env: &Rc<Environment>) -> EvalResult {
         match list {
             [condition, then_expr, else_expr] => {
                 let cond_result = self.eval_value(condition, env)?;

@@ -1,7 +1,7 @@
 #[warn(clippy::all, clippy::pedantic)]
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
+    use std::rc::Rc;
 
     use lemon_lisp::{
         evaluator::Evaluator,
@@ -27,10 +27,7 @@ mod tests {
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
-        assert_eq!(
-            Some(Value::from(Integer::from(2))),
-            environment.borrow().get("a")
-        );
+        assert_eq!(Some(Value::from(Integer::from(2))), environment.get("a"));
     }
 
     #[test]
@@ -48,7 +45,7 @@ mod tests {
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
-        if let Some(Value::Closure(closure)) = environment.borrow().get("add-one") {
+        if let Some(Value::Closure(closure)) = environment.get("add-one") {
             assert_eq!(Some("add-one".to_string()), closure.name);
             assert_eq!(vec!["n".to_string()], closure.params);
             assert_eq!(
@@ -110,7 +107,7 @@ mod tests {
         let evaluate_result = evaluator.eval_value(value, &environment);
 
         assert_eq!(Ok(Value::Void), evaluate_result);
-        match environment.borrow().get("loop") {
+        match environment.get("loop") {
             Some(Value::TailCall(tail_call)) => {
                 assert_eq!(Some("loop".to_string()), tail_call.closure.name);
                 assert!(tail_call.closure.params.is_empty());
@@ -133,7 +130,7 @@ mod tests {
         assert!(parse_result.is_ok());
 
         // (+ num1 num2 num3) => 0 + num1 + num2 + num3
-        let add = |args: &[Value], _: &Rc<RefCell<Environment>>| -> Result<Value, RuntimeError> {
+        let add = |args: &[Value], _: &Rc<Environment>| -> Result<Value, RuntimeError> {
             let result = args
                 .iter()
                 .try_fold(Numeric::Integer(0.into()), |acc, arg| {
@@ -144,7 +141,7 @@ mod tests {
         };
 
         let environment = Environment::new();
-        environment.borrow_mut().set(
+        environment.set(
             "+",
             Value::InternalFunction(InternalFunction {
                 name: "+".to_string(),
