@@ -37,7 +37,7 @@ mod test {
             List(vec![
                 Keyword(Keyword::Define),
                 Symbol("pi".into()),
-                Value::from(Float::with_val(53, 3.14)),
+                Value::from(Float::with_val(53, 3.140)),
             ]),
             List(vec![
                 Symbol("*".into()),

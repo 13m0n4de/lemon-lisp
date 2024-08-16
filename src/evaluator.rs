@@ -11,18 +11,17 @@ pub struct Evaluator;
 type EvalResult = Result<Value, RuntimeError>;
 
 impl Evaluator {
-    pub fn eval_value(&self, value: &Value, env: Rc<RefCell<Environment>>) -> EvalResult {
+    pub fn eval_value(&self, value: &Value, env: &Rc<RefCell<Environment>>) -> EvalResult {
         match value {
-            Value::Void => Ok(Value::Void),
-            Value::Closure { .. } => Ok(Value::Void),
-            Value::Symbol(symbol) => self.eval_symbol(symbol, env),
+            Value::Void | Value::Closure { .. } => Ok(Value::Void),
+            Value::Symbol(symbol) => Self::eval_symbol(symbol, env),
             Value::List(list) => self.eval_list(list, env),
             Value::Quoted(box_value) => Ok(*box_value.clone()),
             _ => Ok(value.clone()),
         }
     }
 
-    fn eval_symbol(&self, symbol: &str, env: Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_symbol(symbol: &str, env: &Rc<RefCell<Environment>>) -> EvalResult {
         let value = env
             .borrow()
             .get(symbol)
@@ -30,18 +29,18 @@ impl Evaluator {
         Ok(value)
     }
 
-    fn eval_list(&self, list: &[Value], env: Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_list(&self, list: &[Value], env: &Rc<RefCell<Environment>>) -> EvalResult {
         let (first, rest) = list.split_first().ok_or(RuntimeError::EmptyList)?;
         match first {
             Value::Closure(closure) => {
                 let params: Vec<Value> = rest
                     .iter()
-                    .map(|value| self.eval_value(value, env.clone()))
+                    .map(|value| self.eval_value(value, env))
                     .try_collect()?;
                 self.eval_closure(closure, &params, env)
             }
             Value::Symbol(_) | Value::List(_) => {
-                let value = self.eval_value(first, env.clone())?;
+                let value = self.eval_value(first, env)?;
                 match value {
                     Value::Closure(closure) => self.eval_closure(&closure, rest, env),
                     Value::TailCall(tail_call) => self.eval_tail_call(&tail_call, rest, env),
@@ -52,9 +51,9 @@ impl Evaluator {
                 }
             }
             Value::Keyword(keyword) => match keyword {
-                Keyword::Define => self.eval_keyword_define(rest, env.clone()),
-                Keyword::Lambda => self.eval_keyword_lambda(rest, env.clone()),
-                Keyword::If => self.eval_keyword_if(rest, env.clone()),
+                Keyword::Define => self.eval_keyword_define(rest, env),
+                Keyword::Lambda => Self::eval_keyword_lambda(rest, env),
+                Keyword::If => self.eval_keyword_if(rest, env),
             },
             _ => Err(RuntimeError::NonCallableValue(first.clone())),
         }
@@ -64,26 +63,26 @@ impl Evaluator {
         &self,
         closure: &Closure,
         args: &[Value],
-        env: Rc<RefCell<Environment>>,
+        env: &Rc<RefCell<Environment>>,
     ) -> EvalResult {
         let new_env = Environment::extend(closure.environment.clone());
         for (i, param) in closure.params.iter().enumerate() {
-            let arg = self.eval_value(&args[i], env.clone())?;
+            let arg = self.eval_value(&args[i], env)?;
             new_env.borrow_mut().set(param, arg);
         }
 
         let (last_expr, preceding_expr) = closure.body.split_last().unwrap();
         for expr in preceding_expr {
-            self.eval_value(expr, new_env.clone())?;
+            self.eval_value(expr, &new_env)?;
         }
-        self.eval_value(last_expr, new_env)
+        self.eval_value(last_expr, &new_env)
     }
 
     fn eval_tail_call(
         &self,
         tail_call: &TailCall,
         args: &[Value],
-        env: Rc<RefCell<Environment>>,
+        env: &Rc<RefCell<Environment>>,
     ) -> Result<Value, RuntimeError> {
         let TailCall {
             closure,
@@ -94,31 +93,28 @@ impl Evaluator {
 
         let new_env = Environment::extend(closure.environment.clone());
         for (i, param) in closure.params.iter().enumerate() {
-            let arg = self.eval_value(&args[i], env.clone())?;
+            let arg = self.eval_value(&args[i], env)?;
             new_env.borrow_mut().set(param, arg);
         }
 
         for expr in &closure.body {
-            self.eval_value(expr, new_env.clone())?;
+            self.eval_value(expr, &new_env)?;
         }
 
         loop {
             let args: Vec<Value> = updates
                 .iter()
-                .map(|update| self.eval_value(update, new_env.clone()))
+                .map(|update| self.eval_value(update, &new_env))
                 .try_collect()?;
             closure.params.iter().zip(args).for_each(|(param, arg)| {
                 new_env.borrow_mut().set(param, arg);
             });
 
             for expr in &closure.body {
-                self.eval_value(expr, new_env.clone())?;
+                self.eval_value(expr, &new_env)?;
             }
-            if self
-                .eval_value(break_condition, new_env.clone())?
-                .try_as_bool()?
-            {
-                break self.eval_value(return_expr, new_env);
+            if self.eval_value(break_condition, &new_env)?.try_as_bool()? {
+                break self.eval_value(return_expr, &new_env);
             }
         }
     }
@@ -127,20 +123,19 @@ impl Evaluator {
         &self,
         internal_fn: &InternalFunction,
         args: &[Value],
-        env: Rc<RefCell<Environment>>,
+        env: &Rc<RefCell<Environment>>,
     ) -> EvalResult {
         let args: Vec<Value> = args
             .iter()
-            .map(|value| self.eval_value(value, env.clone()))
+            .map(|value| self.eval_value(value, env))
             .try_collect()?;
         (internal_fn.function)(&args, env)
     }
 
-    fn eval_keyword_define(&self, list: &[Value], env: Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_keyword_define(&self, list: &[Value], env: &Rc<RefCell<Environment>>) -> EvalResult {
         match list {
             [Value::Symbol(name), value] => {
-                env.borrow_mut()
-                    .set(name, self.eval_value(value, env.clone())?);
+                env.borrow_mut().set(name, self.eval_value(value, env)?);
                 Ok(Value::Void)
             }
             [Value::List(lambda_info), body @ ..] => {
@@ -155,9 +150,9 @@ impl Evaluator {
                     name: Some(name.to_string()),
                     params,
                     body: body.to_vec(),
-                    environment: Rc::new((*env).clone()),
+                    environment: Environment::new(), // TODO
                 };
-                let closure = optimize_tail_call(closure)?;
+                let closure = optimize_tail_call(closure);
 
                 env.borrow_mut().set(name, closure);
                 Ok(Value::Void)
@@ -170,7 +165,7 @@ impl Evaluator {
         }
     }
 
-    fn eval_keyword_lambda(&self, list: &[Value], env: Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_keyword_lambda(list: &[Value], env: &Rc<RefCell<Environment>>) -> EvalResult {
         match list {
             [Value::List(first), body @ ..] => {
                 let params: Vec<String> = first
@@ -182,7 +177,7 @@ impl Evaluator {
                     name: None,
                     params,
                     body: body.to_vec(),
-                    environment: Rc::new((*env).clone()),
+                    environment: Environment::new(), // TODO
                 };
 
                 Ok(Value::Closure(closure))
@@ -194,7 +189,7 @@ impl Evaluator {
                     name: None,
                     params,
                     body: body.to_vec(),
-                    environment: Rc::new((*env).clone()),
+                    environment: env.clone(),
                 };
 
                 Ok(Value::Closure(closure))
@@ -207,10 +202,10 @@ impl Evaluator {
         }
     }
 
-    fn eval_keyword_if(&self, list: &[Value], env: Rc<RefCell<Environment>>) -> EvalResult {
+    fn eval_keyword_if(&self, list: &[Value], env: &Rc<RefCell<Environment>>) -> EvalResult {
         match list {
             [condition, then_expr, else_expr] => {
-                let cond_result = self.eval_value(condition, env.clone())?;
+                let cond_result = self.eval_value(condition, env)?;
                 match cond_result {
                     Value::Bool(false) => self.eval_value(else_expr, env),
                     _ => self.eval_value(then_expr, env),
@@ -235,16 +230,15 @@ enum TailCallInfo {
     },
 }
 
-fn optimize_tail_call(closure: Closure) -> EvalResult {
-    let function_name = match &closure.name {
-        Some(name) => name,
-        None => return Ok(Value::Closure(closure)),
+fn optimize_tail_call(closure: Closure) -> Value {
+    let Some(function_name) = &closure.name else {
+        return Value::Closure(closure);
     };
 
     match closure.body.split_last() {
         Some((Value::List(last_list), preceding_expr)) => {
             match detect_tail_call(last_list, function_name) {
-                Some(TailCallInfo::Direct { updates }) => Ok(Value::from(TailCall {
+                Some(TailCallInfo::Direct { updates }) => Value::from(TailCall {
                     closure: Closure {
                         name: closure.name,
                         params: closure.params,
@@ -254,12 +248,12 @@ fn optimize_tail_call(closure: Closure) -> EvalResult {
                     updates,
                     break_condition: Value::Bool(false).into(),
                     return_expr: Value::Void.into(),
-                })),
+                }),
                 Some(TailCallInfo::Conditional {
                     updates,
                     break_condition,
                     return_expr,
-                }) => Ok(Value::from(TailCall {
+                }) => Value::from(TailCall {
                     closure: Closure {
                         name: closure.name,
                         params: closure.params,
@@ -269,11 +263,11 @@ fn optimize_tail_call(closure: Closure) -> EvalResult {
                     updates,
                     break_condition: break_condition.into(),
                     return_expr: return_expr.into(),
-                })),
-                None => Ok(Value::Closure(closure)),
+                }),
+                None => Value::Closure(closure),
             }
         }
-        _ => Ok(Value::Closure(closure)),
+        _ => Value::Closure(closure),
     }
 }
 

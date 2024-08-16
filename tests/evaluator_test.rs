@@ -22,7 +22,7 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         for value in parse_result.unwrap() {
-            let evaluate_result = evaluator.eval_value(&value, environment.clone());
+            let evaluate_result = evaluator.eval_value(&value, &environment);
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
@@ -43,7 +43,7 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         for value in parse_result.unwrap() {
-            let evaluate_result = evaluator.eval_value(&value, environment.clone());
+            let evaluate_result = evaluator.eval_value(&value, &environment);
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
@@ -75,7 +75,7 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         let value = &parse_result.unwrap()[0];
-        let evaluate_result = evaluator.eval_value(value, environment.clone());
+        let evaluate_result = evaluator.eval_value(value, &environment);
 
         assert_eq!(
             Ok(Value::Closure(Closure {
@@ -93,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn test_optimize_tail_recursive_closure() {
+    fn test_optimize_tail_call() {
         let token_stream = TokenStream::new("(define (loop) (loop))");
         let mut parser = Parser::new(token_stream);
         let parse_result = parser.parse();
@@ -103,7 +103,7 @@ mod tests {
         let environment = Environment::new();
         let evaluator = Evaluator;
         let value = &parse_result.unwrap()[0];
-        let evaluate_result = evaluator.eval_value(value, environment.clone());
+        let evaluate_result = evaluator.eval_value(value, &environment);
 
         assert_eq!(Ok(Value::Void), evaluate_result);
 
@@ -133,7 +133,7 @@ mod tests {
         assert!(parse_result.is_ok());
 
         // (+ num1 num2 num3) => 0 + num1 + num2 + num3
-        let add = |args: &[Value], _: Rc<RefCell<Environment>>| -> Result<Value, RuntimeError> {
+        let add = |args: &[Value], _: &Rc<RefCell<Environment>>| -> Result<Value, RuntimeError> {
             let result = args
                 .iter()
                 .try_fold(Numeric::Integer(0.into()), |acc, arg| {
@@ -154,7 +154,7 @@ mod tests {
 
         let evaluator = Evaluator;
         let value = &parse_result.unwrap()[0];
-        let evaluate_result = evaluator.eval_value(value, environment.clone());
+        let evaluate_result = evaluator.eval_value(value, &environment);
 
         assert_eq!(Ok(Value::from(Integer::from(5))), evaluate_result);
     }

@@ -11,4 +11,4 @@ pub struct InternalFunction {
 }
 
 pub type Function =
-    fn(args: &[Value], env: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;
+    fn(args: &[Value], env: &Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;

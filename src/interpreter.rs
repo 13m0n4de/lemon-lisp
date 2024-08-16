@@ -72,7 +72,7 @@ impl Interpreter {
 
         let mut last_result = Value::Void;
         for expr in parse_resuilt {
-            last_result = self.evaluator.eval_value(&expr, self.environment.clone())?;
+            last_result = self.evaluator.eval_value(&expr, &self.environment)?;
         }
         Ok(last_result)
     }

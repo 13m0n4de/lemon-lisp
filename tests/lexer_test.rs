@@ -56,7 +56,7 @@ mod tests {
         test_area_of_a_circle,
         "(define r 10) (define pi 3.14) (* pi (* r r))" =>  Ok(vec![
             LParen, Symbol("define".into()), Symbol("r".into()), Integer(10.into()), RParen,
-            LParen, Symbol("define".into()), Symbol("pi".into()), Float(Float::with_val(53, 3.14)), RParen,
+            LParen, Symbol("define".into()), Symbol("pi".into()), Float(Float::with_val(53, 3.140)), RParen,
             LParen, Symbol("*".into()), Symbol("pi".into()),
                 LParen, Symbol("*".into()), Symbol("r".into()), Symbol("r".into()), RParen,
             RParen
