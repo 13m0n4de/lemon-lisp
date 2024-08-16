@@ -1,3 +1,4 @@
+#[warn(clippy::all, clippy::pedantic)]
 #[cfg(test)]
 mod tests {
     use std::{cell::RefCell, rc::Rc};
@@ -6,7 +7,7 @@ mod tests {
         evaluator::Evaluator,
         internal::InternalFunction,
         lexer::TokenStream,
-        model::{Closure, Environment, Numeric, RuntimeError, TailCall, Value},
+        model::{Environment, Numeric, RuntimeError, Value},
         parser::Parser,
     };
     use rug::Integer;
@@ -47,21 +48,21 @@ mod tests {
             assert_eq!(Ok(Value::Void), evaluate_result);
         }
 
-        let closure = Closure {
-            name: Some("add-one".to_string()),
-            params: vec!["n".to_string()],
-            body: vec![Value::List(vec![
-                Value::Symbol("+".into()),
-                Value::Symbol("n".into()),
-                Value::from(Integer::from(1)),
-            ])],
-            environment: Environment::new(),
+        if let Some(Value::Closure(closure)) = environment.borrow().get("add-one") {
+            assert_eq!(Some("add-one".to_string()), closure.name);
+            assert_eq!(vec!["n".to_string()], closure.params);
+            assert_eq!(
+                vec![Value::List(vec![
+                    Value::Symbol("+".into()),
+                    Value::Symbol("n".into()),
+                    Value::from(Integer::from(1)),
+                ])],
+                closure.body
+            );
+            assert!(closure.environment.upgrade().is_some());
+        } else {
+            panic!("Expected to find a closure named 'add-one' in the environment");
         };
-
-        assert_eq!(
-            Some(Value::Closure(closure)),
-            environment.borrow().get("add-one")
-        );
     }
 
     #[test]
@@ -77,19 +78,22 @@ mod tests {
         let value = &parse_result.unwrap()[0];
         let evaluate_result = evaluator.eval_value(value, &environment);
 
-        assert_eq!(
-            Ok(Value::Closure(Closure {
-                name: None,
-                params: vec!["a".to_string(), "b".to_string()],
-                body: vec![Value::List(vec![
-                    Value::Symbol("+".into()),
-                    Value::Symbol("a".into()),
-                    Value::Symbol("b".into()),
-                ])],
-                environment: Environment::new(),
-            })),
-            evaluate_result
-        );
+        match evaluate_result {
+            Ok(Value::Closure(closure)) => {
+                assert_eq!(None, closure.name);
+                assert_eq!(vec!["a".to_string(), "b".to_string()], closure.params);
+                assert_eq!(
+                    vec![Value::List(vec![
+                        Value::Symbol("+".into()),
+                        Value::Symbol("a".into()),
+                        Value::Symbol("b".into()),
+                    ])],
+                    closure.body
+                );
+                assert!(closure.environment.upgrade().is_some());
+            }
+            _ => panic!("Expected a closure"),
+        }
     }
 
     #[test]
@@ -106,22 +110,18 @@ mod tests {
         let evaluate_result = evaluator.eval_value(value, &environment);
 
         assert_eq!(Ok(Value::Void), evaluate_result);
-
-        let tail_recursive_closure = TailCall {
-            closure: Closure {
-                name: Some("loop".into()),
-                params: vec![],
-                body: vec![],
-                environment: Environment::new(),
-            },
-            updates: vec![],
-            break_condition: Value::Bool(false).into(),
-            return_expr: Value::Void.into(),
+        match environment.borrow().get("loop") {
+            Some(Value::TailCall(tail_call)) => {
+                assert_eq!(Some("loop".to_string()), tail_call.closure.name);
+                assert!(tail_call.closure.params.is_empty());
+                assert!(tail_call.closure.body.is_empty());
+                assert!(tail_call.closure.environment.upgrade().is_some());
+                assert!(tail_call.updates.is_empty());
+                assert_eq!(Value::Bool(false), *tail_call.break_condition);
+                assert_eq!(Value::Void, *tail_call.return_expr);
+            }
+            _ => panic!("Expected a tail call"),
         };
-        assert_eq!(
-            Some(Value::TailCall(tail_recursive_closure)),
-            environment.borrow().get("loop")
-        );
     }
 
     #[test]

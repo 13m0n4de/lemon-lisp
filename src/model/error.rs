@@ -47,6 +47,7 @@ pub enum RuntimeError {
     NonCallableValue(Value),
     EmptyList,
     SyntaxError(ParseError),
+    InvalidClosure,
 }
 
 impl From<TokenizeError> for ParseError {
@@ -155,6 +156,7 @@ impl fmt::Display for RuntimeError {
             RuntimeError::SyntaxError(parse_error) => {
                 write!(f, "SyntaxError: {}", parse_error)
             }
+            RuntimeError::InvalidClosure => write!(f, "InvalidClosure"),
         }
     }
 }

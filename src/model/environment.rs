@@ -14,10 +14,10 @@ impl Environment {
         Rc::new(RefCell::new(env))
     }
 
-    pub fn extend(parent: Rc<RefCell<Self>>) -> Rc<RefCell<Self>> {
+    pub fn extend(parent: &Rc<RefCell<Self>>) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Environment {
             vars: HashMap::new(),
-            parent: Some(parent),
+            parent: Some(Rc::clone(parent)),
         }))
     }
 

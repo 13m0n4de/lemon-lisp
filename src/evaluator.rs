@@ -65,7 +65,18 @@ impl Evaluator {
         args: &[Value],
         env: &Rc<RefCell<Environment>>,
     ) -> EvalResult {
-        let new_env = Environment::extend(closure.environment.clone());
+        if closure.params.len() != args.len() {
+            return Err(RuntimeError::InvalidArity {
+                expected: closure.params.len(),
+                founded: args.len(),
+            });
+        }
+
+        let closure_env = closure
+            .environment
+            .upgrade()
+            .ok_or_else(|| RuntimeError::InvalidClosure)?;
+        let new_env = Environment::extend(&closure_env);
         for (i, param) in closure.params.iter().enumerate() {
             let arg = self.eval_value(&args[i], env)?;
             new_env.borrow_mut().set(param, arg);
@@ -91,7 +102,18 @@ impl Evaluator {
             return_expr,
         } = tail_call;
 
-        let new_env = Environment::extend(closure.environment.clone());
+        if closure.params.len() != args.len() {
+            return Err(RuntimeError::InvalidArity {
+                expected: closure.params.len(),
+                founded: args.len(),
+            });
+        }
+
+        let closure_env = closure
+            .environment
+            .upgrade()
+            .ok_or_else(|| RuntimeError::InvalidClosure)?;
+        let new_env = Environment::extend(&closure_env);
         for (i, param) in closure.params.iter().enumerate() {
             let arg = self.eval_value(&args[i], env)?;
             new_env.borrow_mut().set(param, arg);
@@ -146,12 +168,7 @@ impl Evaluator {
                     .map(|x| x.try_as_symbol().map(String::from))
                     .try_collect()?;
 
-                let closure = Closure {
-                    name: Some(name.to_string()),
-                    params,
-                    body: body.to_vec(),
-                    environment: Environment::new(), // TODO
-                };
+                let closure = Closure::new(Some(name.to_string()), params, body.to_vec(), env);
                 let closure = optimize_tail_call(closure);
 
                 env.borrow_mut().set(name, closure);
@@ -172,26 +189,12 @@ impl Evaluator {
                     .iter()
                     .map(|x| x.try_as_symbol().map(String::from))
                     .try_collect()?;
-
-                let closure = Closure {
-                    name: None,
-                    params,
-                    body: body.to_vec(),
-                    environment: Environment::new(), // TODO
-                };
-
+                let closure = Closure::new(None, params, body.to_vec(), env);
                 Ok(Value::Closure(closure))
             }
             [Value::Symbol(first), body @ ..] => {
                 let params = vec![first.to_string()];
-
-                let closure = Closure {
-                    name: None,
-                    params,
-                    body: body.to_vec(),
-                    environment: env.clone(),
-                };
-
+                let closure = Closure::new(None, params, body.to_vec(), env);
                 Ok(Value::Closure(closure))
             }
             [value, ..] => Err(RuntimeError::TypeError {
