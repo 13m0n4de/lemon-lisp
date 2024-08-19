@@ -7,4 +7,5 @@ pub mod internal;
 pub mod interpreter;
 pub mod lexer;
 pub mod model;
+pub mod optimizer;
 pub mod parser;

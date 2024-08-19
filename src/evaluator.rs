@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::{
     internal::InternalFunction,
     model::{Closure, Environment, Keyword, RuntimeError, TailCall, Value},
+    optimizer::optimize_closure,
 };
 
 #[derive(Default)]
@@ -163,7 +164,7 @@ impl Evaluator {
                     .try_collect()?;
 
                 let closure = Closure::new(Some(name.to_string()), params, body.to_vec(), env);
-                let closure = optimize_tail_call(closure);
+                let closure = optimize_closure(closure);
 
                 env.set(name, closure);
                 Ok(Value::Void)
@@ -214,98 +215,4 @@ impl Evaluator {
             }),
         }
     }
-}
-
-enum TailCallInfo {
-    Direct {
-        updates: Vec<Value>,
-    },
-    Conditional {
-        updates: Vec<Value>,
-        break_condition: Value,
-        return_expr: Value,
-    },
-}
-
-fn optimize_tail_call(closure: Closure) -> Value {
-    let Some(function_name) = &closure.name else {
-        return Value::Closure(closure);
-    };
-
-    match closure.body.split_last() {
-        Some((Value::List(last_list), preceding_expr)) => {
-            match detect_tail_call(last_list, function_name) {
-                Some(TailCallInfo::Direct { updates }) => Value::from(TailCall {
-                    closure: Closure {
-                        name: closure.name,
-                        params: closure.params,
-                        body: preceding_expr.to_vec(),
-                        environment: closure.environment,
-                    },
-                    updates,
-                    break_condition: Value::Bool(false).into(),
-                    return_expr: Value::Void.into(),
-                }),
-                Some(TailCallInfo::Conditional {
-                    updates,
-                    break_condition,
-                    return_expr,
-                }) => Value::from(TailCall {
-                    closure: Closure {
-                        name: closure.name,
-                        params: closure.params,
-                        body: preceding_expr.to_vec(),
-                        environment: closure.environment,
-                    },
-                    updates,
-                    break_condition: break_condition.into(),
-                    return_expr: return_expr.into(),
-                }),
-                None => Value::Closure(closure),
-            }
-        }
-        _ => Value::Closure(closure),
-    }
-}
-
-fn detect_tail_call(expr: &[Value], function_name: &str) -> Option<TailCallInfo> {
-    match expr {
-        [Value::Symbol(symbol), params @ ..] if symbol == function_name => {
-            Some(TailCallInfo::Direct {
-                updates: params.to_vec(),
-            })
-        }
-        [Value::Keyword(Keyword::If), condition, then_expr, else_expr] => {
-            if let Some(then_params) = extract_self_call_params(then_expr, function_name) {
-                Some(TailCallInfo::Conditional {
-                    updates: then_params,
-                    break_condition: Value::List(vec![
-                        Value::Symbol("not".into()),
-                        condition.clone(),
-                    ]),
-                    return_expr: else_expr.clone(),
-                })
-            } else {
-                extract_self_call_params(else_expr, function_name).map(|else_params| {
-                    TailCallInfo::Conditional {
-                        updates: else_params,
-                        break_condition: condition.clone(),
-                        return_expr: then_expr.clone(),
-                    }
-                })
-            }
-        }
-        _ => None,
-    }
-}
-
-fn extract_self_call_params(expr: &Value, function_name: &str) -> Option<Vec<Value>> {
-    if let Value::List(list) = expr {
-        if let [Value::Symbol(symbol), params @ ..] = list.as_slice() {
-            if symbol == function_name {
-                return Some(params.to_vec());
-            }
-        }
-    }
-    None
 }
